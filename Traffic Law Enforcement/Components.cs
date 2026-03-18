@@ -32,6 +32,15 @@ namespace Traffic_Law_Enforcement
         public bool m_ExitPressureApplied;
     }
 
+    public struct CenterlineAccessObsoleteState : IComponentData
+    {
+        public Entity m_LastCurrentLane;
+        public Entity m_LastSourceLane;
+        public Entity m_LastTargetLane;
+        public int m_LastAccessIndex;
+        public byte m_AwaitingPathRefresh;
+    }
+
     public struct TrafficLawEnforcementStatistics : IComponentData
     {
         public int m_PublicTransportLaneViolationCount;
