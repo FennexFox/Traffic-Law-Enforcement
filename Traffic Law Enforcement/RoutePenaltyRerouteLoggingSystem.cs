@@ -269,7 +269,7 @@ namespace Traffic_Law_Enforcement
 
                 if (IsAccessConnection(targetLane))
                 {
-                    tag = "mid-block(access-connection)";
+                    tag = $"mid-block({DescribeAccessConnectionTag(targetLane)})";
                     return true;
                 }
             }
@@ -296,7 +296,7 @@ namespace Traffic_Law_Enforcement
                 return false;
             }
 
-            tag = "mid-block(illegal-egress)";
+            tag = $"mid-block(illegal-egress:{DescribeAccessOriginTag(sourceLane)})";
             return true;
         }
 
@@ -471,6 +471,46 @@ namespace Traffic_Law_Enforcement
             bool parkingAccess = (connectionLane.m_Flags & ConnectionLaneFlags.Parking) != 0;
             bool roadConnection = (connectionLane.m_Flags & ConnectionLaneFlags.Road) != 0;
             return parkingAccess || !roadConnection;
+        }
+
+        private string DescribeAccessOriginTag(Entity lane)
+        {
+            if (m_ParkingLaneData.HasComponent(lane))
+            {
+                return "parking-origin";
+            }
+
+            if (m_GarageLaneData.HasComponent(lane))
+            {
+                return "garage-origin";
+            }
+
+            if (IsAccessConnection(lane))
+            {
+                return DescribeAccessConnectionTag(lane) + "-origin";
+            }
+
+            return "access-origin";
+        }
+
+        private string DescribeAccessConnectionTag(Entity lane)
+        {
+            if (!m_ConnectionLaneData.TryGetComponent(lane, out ConnectionLane connectionLane))
+            {
+                return "access-connection";
+            }
+
+            if ((connectionLane.m_Flags & ConnectionLaneFlags.Parking) != 0)
+            {
+                return "parking-connection";
+            }
+
+            if ((connectionLane.m_Flags & ConnectionLaneFlags.Road) == 0)
+            {
+                return "building-service-access-connection";
+            }
+
+            return "access-connection";
         }
 
         private static bool LaneAllowsSideAccess(CarLane lane)

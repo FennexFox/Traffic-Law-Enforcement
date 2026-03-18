@@ -69,7 +69,7 @@ namespace Traffic_Law_Enforcement
 
             try
             {
-                if (!Mod.IsEnforcementEnabled)
+                if (!Mod.IsMidBlockCrossingEnforcementEnabled && !Mod.IsIntersectionMovementEnforcementEnabled)
                 {
                     for (int index = 0; index < vehicles.Length; index++)
                     {
@@ -187,13 +187,15 @@ namespace Traffic_Law_Enforcement
             {
                 if (m_ParkingLaneData.HasComponent(history.m_CurrentLane) || m_GarageLaneData.HasComponent(history.m_CurrentLane))
                 {
-                    reason = "vehicle entered parking or garage access from a lane without side-access permission";
+                    reason = m_GarageLaneData.HasComponent(history.m_CurrentLane)
+                        ? "vehicle entered garage access from a lane without side-access permission"
+                        : "vehicle entered parking access from a lane without side-access permission";
                     return true;
                 }
 
                 if (IsAccessConnection(history.m_CurrentLane))
                 {
-                    reason = "vehicle crossed into an access connection from a lane without side-access permission";
+                    reason = $"vehicle crossed into {DescribeAccessConnection(history.m_CurrentLane)} from a lane without side-access permission";
                     return true;
                 }
             }
@@ -220,7 +222,7 @@ namespace Traffic_Law_Enforcement
                 return false;
             }
 
-            reason = "vehicle exited parking or building access into a lane without side-access permission";
+            reason = $"vehicle exited {DescribeAccessOrigin(history.m_PreviousLane)} into a lane without side-access permission";
             return true;
         }
 
@@ -285,6 +287,46 @@ namespace Traffic_Law_Enforcement
             bool parkingAccess = (connectionLane.m_Flags & ConnectionLaneFlags.Parking) != 0;
             bool roadConnection = (connectionLane.m_Flags & ConnectionLaneFlags.Road) != 0;
             return parkingAccess || !roadConnection;
+        }
+
+        private string DescribeAccessOrigin(Entity lane)
+        {
+            if (m_ParkingLaneData.HasComponent(lane))
+            {
+                return "parking access";
+            }
+
+            if (m_GarageLaneData.HasComponent(lane))
+            {
+                return "garage access";
+            }
+
+            if (IsAccessConnection(lane))
+            {
+                return DescribeAccessConnection(lane);
+            }
+
+            return "building access";
+        }
+
+        private string DescribeAccessConnection(Entity lane)
+        {
+            if (!m_ConnectionLaneData.TryGetComponent(lane, out ConnectionLane connectionLane))
+            {
+                return "access connection";
+            }
+
+            if ((connectionLane.m_Flags & ConnectionLaneFlags.Parking) != 0)
+            {
+                return "parking connection";
+            }
+
+            if ((connectionLane.m_Flags & ConnectionLaneFlags.Road) == 0)
+            {
+                return "building/service access connection";
+            }
+
+            return "access connection";
         }
 
         private static bool LaneAllowsSideAccess(CarLane lane)

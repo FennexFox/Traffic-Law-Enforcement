@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using Game;
 using Game.Pathfind;
 using Game.Vehicles;
 using HarmonyLib;
@@ -73,6 +74,8 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
+            EnforcementPolicyImpactService.RecordPathRequest();
+
             World world = World.DefaultGameObjectInjectionWorld;
             if (world == null || !world.IsCreated)
             {
@@ -87,7 +90,10 @@ namespace Traffic_Law_Enforcement
             }
 
             Car car = entityManager.GetComponentData<Car>(owner);
-            SyncPrivateTrafficIgnoredRules(world, owner, car, ref item);
+            if (Mod.IsPublicTransportLaneEnforcementEnabled)
+            {
+                SyncPrivateTrafficIgnoredRules(world, owner, car, ref item);
+            }
 
             if (!EmergencyVehiclePolicy.IsEmergencyVehicle(car))
             {
@@ -99,7 +105,7 @@ namespace Traffic_Law_Enforcement
 
         private static void CalculateCostPostfix(ref float __result, RuleFlags rules, float2 delta, PathfindParameters ___m_Parameters)
         {
-            if (!Mod.IsEnforcementEnabled || (rules & RuleFlags.ForbidPrivateTraffic) == 0)
+            if (!Mod.IsPublicTransportLaneEnforcementEnabled || (rules & RuleFlags.ForbidPrivateTraffic) == 0)
             {
                 return;
             }

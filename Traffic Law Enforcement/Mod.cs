@@ -12,7 +12,10 @@ namespace Traffic_Law_Enforcement
     {
         public static ILog log = LogManager.GetLogger($"{nameof(Traffic_Law_Enforcement)}.{nameof(Mod)}").SetShowsErrorsInUI(false);
         public static Setting Settings { get; private set; }
-        public static bool IsEnforcementEnabled => EnforcementGameplaySettingsService.Current.EnableEnforcement;
+        public static bool IsEnforcementEnabled => EnforcementGameplaySettingsService.Current.HasAnyEnforcementEnabled();
+        public static bool IsPublicTransportLaneEnforcementEnabled => EnforcementGameplaySettingsService.Current.EnablePublicTransportLaneEnforcement;
+        public static bool IsMidBlockCrossingEnforcementEnabled => EnforcementGameplaySettingsService.Current.EnableMidBlockCrossingEnforcement;
+        public static bool IsIntersectionMovementEnforcementEnabled => EnforcementGameplaySettingsService.Current.EnableIntersectionMovementEnforcement;
         private Setting m_Setting;
 
         public void OnLoad(UpdateSystem updateSystem)
@@ -38,6 +41,9 @@ namespace Traffic_Law_Enforcement
             updateSystem.UpdateBefore<PathfindingMoneyPenaltySystem, CarNavigationSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateBefore<PublicTransportLanePermissionSystem, CarNavigationSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateBefore<PublicTransportLanePermissionSystem, PublicTransportLaneViolationSystem>(SystemUpdatePhase.GameSimulation);
+            updateSystem.UpdateAfter<CenterlineAccessObsoleteSystem, PublicTransportLanePermissionSystem>(SystemUpdatePhase.GameSimulation);
+            updateSystem.UpdateAfter<CenterlineAccessObsoleteSystem, PublicTransportLaneExitPressureSystem>(SystemUpdatePhase.GameSimulation);
+            updateSystem.UpdateBefore<CenterlineAccessObsoleteSystem, CarNavigationSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateAfter<EnforcementGameTimeSystem, CarNavigationSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateAfter<SettingsChangeLoggingSystem, EnforcementGameTimeSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateAfter<MonthlyEnforcementChirperSystem, EnforcementGameTimeSystem>(SystemUpdatePhase.GameSimulation);
@@ -50,7 +56,6 @@ namespace Traffic_Law_Enforcement
             updateSystem.UpdateAfter<LaneTransitionViolationSystem, VehicleLaneHistorySystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateAfter<EnforcementFineMoneySystem, PublicTransportLaneViolationSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateAfter<EnforcementFineMoneySystem, LaneTransitionViolationSystem>(SystemUpdatePhase.GameSimulation);
-            updateSystem.UpdateAfter<PublicTransportLaneEnforcementOutputSystem, PublicTransportLaneViolationSystem>(SystemUpdatePhase.GameSimulation);
         }
 
         public void OnDispose()
