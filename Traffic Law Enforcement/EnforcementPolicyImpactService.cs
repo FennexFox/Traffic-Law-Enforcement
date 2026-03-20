@@ -399,8 +399,15 @@ namespace Traffic_Law_Enforcement
 
             UpdateRollingWindowData();
 
-            // 실시간 경로 수 로그 출력
-            Mod.log.Info($"[RouteCount] routeTotal={s_TotalPathRequestCount}, violationTotal={s_TotalActualPathCount}, avoidanceTotal={s_TotalAvoidedPathCount}");
+            // Real-time route count and category logs (recent 1 month)
+            var snapshot = GetRollingWindowSnapshot();
+            int routeTotal = snapshot.TotalActualPathCount;
+            int violationTotal = snapshot.PublicTransportLaneActualCount + snapshot.MidBlockCrossingActualCount + snapshot.IntersectionMovementActualCount;
+            int avoidanceTotal = snapshot.TotalAvoidedPathCount;
+            int activeRouteSum = snapshot.TotalPathRequestCount; // 1달간의 합산 활성 경로 수
+            Mod.log.Info($"[RouteCount] activeRouteSum={activeRouteSum}, violationTotal={violationTotal}, avoidanceTotal={avoidanceTotal}");
+            Mod.log.Info($"[ViolationCount] PublicTransport={snapshot.PublicTransportLaneActualCount}, MidBlock={snapshot.MidBlockCrossingActualCount}, Intersection={snapshot.IntersectionMovementActualCount}");
+            Mod.log.Info($"[AvoidanceCount] PublicTransport={snapshot.PublicTransportLaneAvoidedEventCount}, MidBlock={snapshot.MidBlockCrossingAvoidedEventCount}, Intersection={snapshot.IntersectionMovementAvoidedEventCount}");
 
             long currentMonthIndex = EnforcementGameTime.GetMonthIndex(EnforcementGameTime.CurrentTimestampMonthTicks);
             if (!s_HasTrackingState || currentMonthIndex != s_TrackingState.m_MonthIndex)
@@ -470,9 +477,6 @@ namespace Traffic_Law_Enforcement
                 s_IntersectionMovementAvoidedEventCount += 1;
             }
 
-            // Enforcement event log
-            double suppressionFailureRate = (s_TotalActualPathCount + s_TotalAvoidedPathCount) > 0 ? (100d * s_TotalActualPathCount / (s_TotalActualPathCount + s_TotalAvoidedPathCount)) : 0.0;
-            Mod.log.Info($"[Enforcement Event] Avoidance: PT={avoidedPublicTransportLanePenalty}, MidBlock={avoidedMidBlockPenalty}, Intersection={avoidedIntersectionPenalty}, violationTotal={s_TotalActualPathCount}, avoidanceTotal={s_TotalAvoidedPathCount}, routeTotal={s_TotalPathRequestCount}, suppressionFailureRate={suppressionFailureRate:0.0}%");
         }
 
         public static string GetCurrentPeriodSummaryText()
@@ -489,15 +493,16 @@ namespace Traffic_Law_Enforcement
 
             RollingWindowSnapshot snapshot = GetRollingWindowSnapshot();
             // 모든 차량 엔티티의 활성 경로 집계값을 분모로 사용
-            int vehicleRouteDenominator = GetActiveVehicleRouteCount();
-            int suppressionFailureDenominator = snapshot.TotalActualPathCount + snapshot.TotalAvoidedPathCount;
+            int violationNumerator = snapshot.PublicTransportLaneActualCount + snapshot.MidBlockCrossingActualCount + snapshot.IntersectionMovementActualCount;
+            int vehicleRouteDenominator = snapshot.TotalPathRequestCount;
+            int suppressionFailureDenominator = violationNumerator + snapshot.TotalAvoidedPathCount;
             if (vehicleRouteDenominator <= 0 && suppressionFailureDenominator <= 0)
             {
                 return LocalizeText(kNoDataLocaleId, "No pathfinding requests, fined violations, or rerouted pathfinding outcomes that avoided penalized routes have been recorded yet.");
             }
 
-            string violationRate = FormatRatio(snapshot.TotalActualPathCount, vehicleRouteDenominator);
-            string suppressionFailureRate = FormatRatio(snapshot.TotalActualPathCount, suppressionFailureDenominator);
+            string violationRate = FormatRatio(violationNumerator, vehicleRouteDenominator);
+            string suppressionFailureRate = FormatRatio(violationNumerator, suppressionFailureDenominator);
             string fines = FormatMoney(snapshot.TotalFineAmount);
             string totalLabel = LocalizeText(kTotalLabelLocaleId, "Total");
             return FormatLocalizedText(kSummaryLineFormatLocaleId, "{0}: violation rate {1}, suppression failure rate {2}, fines {3}", totalLabel, violationRate, suppressionFailureRate, fines);
@@ -517,7 +522,7 @@ namespace Traffic_Law_Enforcement
 
             RollingWindowSnapshot snapshot = GetRollingWindowSnapshot();
             StringBuilder builder = new StringBuilder(640);
-            int vehicleRouteDenominator = GetActiveVehicleRouteCount();
+            int vehicleRouteDenominator = snapshot.TotalPathRequestCount;
             AppendRateAndFineLine(builder, LocalizeText(kTotalLabelLocaleId, "Total"), snapshot.TotalActualPathCount, vehicleRouteDenominator, snapshot.TotalAvoidedPathCount, snapshot.TotalFineAmount);
             AppendRateAndFineLine(builder, LocalizeText(kPublicTransportLaneLabelLocaleId, "PT-lane"), snapshot.PublicTransportLaneActualCount, vehicleRouteDenominator, snapshot.PublicTransportLaneAvoidedEventCount, snapshot.PublicTransportLaneFineAmount);
             AppendRateAndFineLine(builder, LocalizeText(kMidBlockLabelLocaleId, "Mid-block"), snapshot.MidBlockCrossingActualCount, vehicleRouteDenominator, snapshot.MidBlockCrossingAvoidedEventCount, snapshot.MidBlockCrossingFineAmount);
@@ -711,7 +716,8 @@ namespace Traffic_Law_Enforcement
             int actualCount = actualCountSelector(snapshot);
             int avoidedCount = avoidedCountSelector(snapshot);
             int fineAmount = fineAmountSelector(snapshot);
-            string violationRate = FormatRatio(actualCount, snapshot.TotalPathRequestCount);
+            int vehicleRouteDenominator = GetActiveVehicleRouteCount();
+            string violationRate = FormatRatio(actualCount, vehicleRouteDenominator);
             string suppressionFailureRate = FormatRatio(actualCount, actualCount + avoidedCount);
             string fines = FormatMoney(fineAmount);
             return FormatLocalizedText(kDetailLineFormatLocaleId, "{0}: violation rate {1}, suppression failure rate {2}, fines {3}", label, violationRate, suppressionFailureRate, fines);
