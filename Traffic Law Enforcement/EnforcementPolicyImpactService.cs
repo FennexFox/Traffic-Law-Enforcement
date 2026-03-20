@@ -432,6 +432,10 @@ namespace Traffic_Law_Enforcement
                     s_IntersectionMovementFineAmount += fineAmount;
                     break;
             }
+
+            // Enforcement event log
+            double suppressionFailureRate = (s_TotalActualPathCount + s_TotalAvoidedPathCount) > 0 ? (100d * s_TotalActualPathCount / (s_TotalActualPathCount + s_TotalAvoidedPathCount)) : 0.0;
+            Mod.log.Info($"[Enforcement Event] Violation: kind={kind}, fine={fineAmount}, violationTotal={s_TotalActualPathCount}, avoidanceTotal={s_TotalAvoidedPathCount}, routeTotal={s_TotalPathRequestCount}, suppressionFailureRate={suppressionFailureRate:0.0}%");
         }
 
         public static void RecordAvoidedReroute(bool avoidedPublicTransportLanePenalty, bool avoidedMidBlockPenalty, bool avoidedIntersectionPenalty)
@@ -462,6 +466,10 @@ namespace Traffic_Law_Enforcement
             {
                 s_IntersectionMovementAvoidedEventCount += 1;
             }
+
+            // Enforcement event log
+            double suppressionFailureRate = (s_TotalActualPathCount + s_TotalAvoidedPathCount) > 0 ? (100d * s_TotalActualPathCount / (s_TotalActualPathCount + s_TotalAvoidedPathCount)) : 0.0;
+            Mod.log.Info($"[Enforcement Event] Avoidance: PT={avoidedPublicTransportLanePenalty}, MidBlock={avoidedMidBlockPenalty}, Intersection={avoidedIntersectionPenalty}, violationTotal={s_TotalActualPathCount}, avoidanceTotal={s_TotalAvoidedPathCount}, routeTotal={s_TotalPathRequestCount}, suppressionFailureRate={suppressionFailureRate:0.0}%");
         }
 
         public static string GetCurrentPeriodSummaryText()
@@ -663,37 +671,6 @@ namespace Traffic_Law_Enforcement
             PruneAvoidedRerouteEvents(cutoffTimestamp);
         }
 
-        public static bool NeedsInitialPathRequestSeed()
-        {
-            return EnforcementGameTime.IsInitialized &&
-                s_TotalPathRequestCount <= 0 &&
-                s_PathRequestEvents.Count <= 0 &&
-                s_PendingPathRequestsUntilTimeInitialization <= 0;
-        }
-
-        public static bool TrySeedInitialPathRequestsFromActiveTraffic(int activeTrafficCount)
-        {
-            if (!NeedsInitialPathRequestSeed())
-            {
-                return false;
-            }
-
-            int seedCount = ClampToNonNegative(activeTrafficCount);
-            if (seedCount <= 0)
-            {
-                return false;
-            }
-
-            long timestampMonthTicks = EnforcementGameTime.CurrentTimestampMonthTicks;
-            s_TotalPathRequestCount += seedCount;
-            for (int index = 0; index < seedCount; index += 1)
-            {
-                s_PathRequestEvents.Add(new PathRequestEvent(timestampMonthTicks));
-            }
-
-            Mod.log.Info($"Seeded initial path-request baseline from active road-traffic count: seedCount={seedCount}, timestampMonthTicks={timestampMonthTicks}");
-            return true;
-        }
 
         private static void FlushPendingPathRequests()
         {

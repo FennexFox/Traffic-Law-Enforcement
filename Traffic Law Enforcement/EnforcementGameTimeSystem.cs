@@ -140,13 +140,6 @@ namespace Traffic_Law_Enforcement
             }
 
             EnforcementPolicyImpactService.UpdateTrackingForCurrentMonth();
-
-            if (EnforcementPolicyImpactService.NeedsInitialPathRequestSeed() &&
-                EnforcementPolicyImpactService.TrySeedInitialPathRequestsFromActiveTraffic(CountActiveRoadTrafficVehicles()))
-            {
-                EnforcementPolicyImpactService.UpdateTrackingForCurrentMonth();
-            }
-
             EnforcementPenaltyService.LogRepeatPolicySummaryIfChanged();
             EnforcementTelemetry.PruneExpiredViolationTimestamps();
         }
