@@ -26,7 +26,7 @@ namespace Traffic_Law_Enforcement
             LastEmittedLogCount = lastEmittedLogCount;
         }
     }
-
+    [BurstCompile]
     public partial class RoutePenaltyRerouteLoggingSystem : GameSystemBase
     {
         private EntityQuery m_CachedVehicleQuery;
@@ -110,39 +110,33 @@ namespace Traffic_Law_Enforcement
             CollectCandidateVehicles(m_CarChangedQuery);
 
             var candidateVehicles = m_CandidateVehicles.ToList();
-            var currentLaneData = m_CurrentLaneData;
-            var lastSnapshots = m_LastSnapshots;
-            int emittedLogs = 0;
-
-            Job.WithCode(() =>
+            int logsEmitted = 0;
+            for (int i = 0; i < candidateVehicles.Count; i++)
             {
-                int logsEmitted = 0;
-                for (int i = 0; i < candidateVehicles.Count; i++)
-                {
-                    Entity vehicle = candidateVehicles[i];
-                    if (!currentLaneData.TryGetComponent(vehicle, out CarCurrentLane currentLane))
-                        continue;
+                Entity vehicle = candidateVehicles[i];
+                if (!m_CurrentLaneData.TryGetComponent(vehicle, out CarCurrentLane currentLane))
+                    continue;
 
-                    RoutePenaltySnapshot snapshot = BuildSnapshot(vehicle, currentLane);
-                    if (lastSnapshots.TryGetValue(vehicle, out RoutePenaltySnapshot previousSnapshot))
+                RoutePenaltySnapshot snapshot = BuildSnapshot(vehicle, currentLane);
+                if (m_LastSnapshots.TryGetValue(vehicle, out RoutePenaltySnapshot previousSnapshot))
+                {
+                    if (ShouldLogReroute(previousSnapshot, snapshot))
                     {
-                        if (ShouldLogReroute(previousSnapshot, snapshot))
+                        RecordRerouteTelemetry(previousSnapshot, snapshot);
+                        if (loggingEnabled && logsEmitted < MaxLogsPerUpdate)
                         {
-                            RecordRerouteTelemetry(previousSnapshot, snapshot);
-                            if (loggingEnabled && logsEmitted < MaxLogsPerUpdate)
-                            {
-                                LogReroute(vehicle, previousSnapshot, snapshot);
-                                logsEmitted++;
-                            }
+                            LogReroute(vehicle, previousSnapshot, snapshot);
+                            logsEmitted++;
                         }
-                        lastSnapshots[vehicle] = snapshot;
                     }
-                    else
-                    {
-                        lastSnapshots[vehicle] = snapshot;
-                    }
+                    m_LastSnapshots[vehicle] = snapshot;
                 }
-            }).WithoutBurst().Run();
+                else
+                {
+                    m_LastSnapshots[vehicle] = snapshot;
+                }
+            }
+            int emittedLogs = logsEmitted;
 
             m_UpdateCount += 1;
             if ((m_UpdateCount % SnapshotSweepInterval) == 0)
