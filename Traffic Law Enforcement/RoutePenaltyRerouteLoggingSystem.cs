@@ -5,6 +5,8 @@ using Game.Net;
 using Game.Vehicles;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Burst;
+using System.Linq;
 using Entity = Unity.Entities.Entity;
 
 namespace Traffic_Law_Enforcement
@@ -27,6 +29,7 @@ namespace Traffic_Law_Enforcement
 
     public partial class RoutePenaltyRerouteLoggingSystem : GameSystemBase
     {
+        private EntityQuery m_CachedVehicleQuery;
         private const int MaxPenaltyTags = 6;
         private const int MaxLogsPerUpdate = 4;
         private const int SnapshotSweepInterval = 2048;
@@ -76,9 +79,11 @@ namespace Traffic_Law_Enforcement
             m_GarageLaneData = GetComponentLookup<GarageLane>(true);
             m_ConnectionLaneData = GetComponentLookup<ConnectionLane>(true);
             m_TypeLookups = BusLaneVehicleTypeLookups.Create(this);
+            m_CachedVehicleQuery = GetEntityQuery(ComponentType.ReadOnly<Car>(), ComponentType.ReadOnly<CarCurrentLane>());
             RequireForUpdate(m_CarQuery);
         }
 
+        [BurstCompile]
         protected override void OnUpdate()
         {
             bool loggingEnabled = EnforcementLoggingPolicy.ShouldLogEstimatedReroutes();
@@ -104,35 +109,40 @@ namespace Traffic_Law_Enforcement
             CollectCandidateVehicles(m_NavigationLaneChangedQuery);
             CollectCandidateVehicles(m_CarChangedQuery);
 
+            var candidateVehicles = m_CandidateVehicles.ToList();
+            var currentLaneData = m_CurrentLaneData;
+            var lastSnapshots = m_LastSnapshots;
             int emittedLogs = 0;
-            foreach (Entity vehicle in m_CandidateVehicles)
+
+            Job.WithCode(() =>
             {
-                if (!m_CurrentLaneData.TryGetComponent(vehicle, out CarCurrentLane currentLane))
+                int logsEmitted = 0;
+                for (int i = 0; i < candidateVehicles.Count; i++)
                 {
-                    continue;
-                }
+                    Entity vehicle = candidateVehicles[i];
+                    if (!currentLaneData.TryGetComponent(vehicle, out CarCurrentLane currentLane))
+                        continue;
 
-                RoutePenaltySnapshot snapshot = BuildSnapshot(vehicle, currentLane);
-                if (m_LastSnapshots.TryGetValue(vehicle, out RoutePenaltySnapshot previousSnapshot))
-                {
-                    if (ShouldLogReroute(previousSnapshot, snapshot))
+                    RoutePenaltySnapshot snapshot = BuildSnapshot(vehicle, currentLane);
+                    if (lastSnapshots.TryGetValue(vehicle, out RoutePenaltySnapshot previousSnapshot))
                     {
-                        RecordRerouteTelemetry(previousSnapshot, snapshot);
-
-                        if (loggingEnabled && emittedLogs < MaxLogsPerUpdate)
+                        if (ShouldLogReroute(previousSnapshot, snapshot))
                         {
-                            LogReroute(vehicle, previousSnapshot, snapshot);
-                            emittedLogs += 1;
+                            RecordRerouteTelemetry(previousSnapshot, snapshot);
+                            if (loggingEnabled && logsEmitted < MaxLogsPerUpdate)
+                            {
+                                LogReroute(vehicle, previousSnapshot, snapshot);
+                                logsEmitted++;
+                            }
                         }
+                        lastSnapshots[vehicle] = snapshot;
                     }
-
-                    m_LastSnapshots[vehicle] = snapshot;
+                    else
+                    {
+                        lastSnapshots[vehicle] = snapshot;
+                    }
                 }
-                else
-                {
-                    m_LastSnapshots[vehicle] = snapshot;
-                }
-            }
+            }).WithoutBurst().Run();
 
             m_UpdateCount += 1;
             if ((m_UpdateCount % SnapshotSweepInterval) == 0)

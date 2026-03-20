@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using Unity.Entities;
+using Game.Vehicles;
 using Game;
 using Game.SceneFlow;
 
@@ -146,6 +148,18 @@ namespace Traffic_Law_Enforcement
 
     public static class EnforcementPolicyImpactService
     {
+        // 활성 차량 경로 집계 (ECS 쿼리 기반)
+        public static int GetActiveVehicleRouteCount()
+        {
+            var world = World.DefaultGameObjectInjectionWorld;
+            if (world == null)
+                return 0;
+            var entityManager = world.EntityManager;
+            var vehicleQuery = entityManager.CreateEntityQuery(
+                ComponentType.ReadOnly<Car>(),
+                ComponentType.ReadOnly<CarCurrentLane>());
+            return vehicleQuery.CalculateEntityCount();
+        }
         public const string kLoadedSaveOnlyLocaleId = "TrafficLawEnforcement.PolicyImpact.Text.LoadedSaveOnly";
         public const string kWaitingForTimeLocaleId = "TrafficLawEnforcement.PolicyImpact.Text.WaitingForTime";
         public const string kNoDataLocaleId = "TrafficLawEnforcement.PolicyImpact.Text.NoData";
@@ -463,13 +477,15 @@ namespace Traffic_Law_Enforcement
             }
 
             RollingWindowSnapshot snapshot = GetRollingWindowSnapshot();
+            // 모든 차량 엔티티의 활성 경로 집계값을 분모로 사용
+            int vehicleRouteDenominator = GetActiveVehicleRouteCount();
             int suppressionFailureDenominator = snapshot.TotalActualPathCount + snapshot.TotalAvoidedPathCount;
-            if (snapshot.TotalPathRequestCount <= 0 && suppressionFailureDenominator <= 0)
+            if (vehicleRouteDenominator <= 0 && suppressionFailureDenominator <= 0)
             {
                 return LocalizeText(kNoDataLocaleId, "No pathfinding requests, fined violations, or rerouted pathfinding outcomes that avoided penalized routes have been recorded yet.");
             }
 
-            string violationRate = FormatRatio(snapshot.TotalActualPathCount, snapshot.TotalPathRequestCount);
+            string violationRate = FormatRatio(snapshot.TotalActualPathCount, vehicleRouteDenominator);
             string suppressionFailureRate = FormatRatio(snapshot.TotalActualPathCount, suppressionFailureDenominator);
             string fines = FormatMoney(snapshot.TotalFineAmount);
             string totalLabel = LocalizeText(kTotalLabelLocaleId, "Total");
