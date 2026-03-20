@@ -444,10 +444,6 @@ namespace Traffic_Law_Enforcement
                     s_IntersectionMovementFineAmount += fineAmount;
                     break;
             }
-
-            // Enforcement event log
-            double suppressionFailureRate = (s_TotalActualPathCount + s_TotalAvoidedPathCount) > 0 ? (100d * s_TotalActualPathCount / (s_TotalActualPathCount + s_TotalAvoidedPathCount)) : 0.0;
-            Mod.log.Info($"[Enforcement Event] Violation: kind={kind}, fine={fineAmount}, violationTotal={s_TotalActualPathCount}, avoidanceTotal={s_TotalAvoidedPathCount}, routeTotal={s_TotalPathRequestCount}, suppressionFailureRate={suppressionFailureRate:0.0}%");
         }
 
         public static void RecordAvoidedReroute(bool avoidedPublicTransportLanePenalty, bool avoidedMidBlockPenalty, bool avoidedIntersectionPenalty)
