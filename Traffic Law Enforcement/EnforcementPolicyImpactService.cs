@@ -380,14 +380,17 @@ namespace Traffic_Law_Enforcement
         public static void RecordPathRequest()
         {
             s_TotalPathRequestCount += 1;
-
-            if (EnforcementGameTime.IsInitialized && EnforcementGameTime.CurrentTimestampMonthTicks >= 0L)
+            if (!EnforcementGameTime.IsInitialized)
             {
-                s_PathRequestEvents.Add(new PathRequestEvent(EnforcementGameTime.CurrentTimestampMonthTicks));
+                s_PendingPathRequestsUntilTimeInitialization += 1;
                 return;
             }
-
-            s_PendingPathRequestsUntilTimeInitialization += 1;
+            if (EnforcementGameTime.CurrentTimestampMonthTicks < 0)
+            {
+                s_PendingPathRequestsUntilTimeInitialization += 1;
+                return;
+            }
+            s_PathRequestEvents.Add(new PathRequestEvent(EnforcementGameTime.CurrentTimestampMonthTicks));
         }
 
         public static void UpdateTrackingForCurrentMonth()
