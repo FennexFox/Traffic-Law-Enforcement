@@ -401,7 +401,6 @@ namespace Traffic_Law_Enforcement
 
             // Real-time route count and category logs (recent 1 month)
             var snapshot = GetRollingWindowSnapshot();
-            int routeTotal = snapshot.TotalActualPathCount;
             int violationTotal = snapshot.PublicTransportLaneActualCount + snapshot.MidBlockCrossingActualCount + snapshot.IntersectionMovementActualCount;
             int avoidanceTotal = snapshot.TotalAvoidedPathCount;
             int activeRouteSum = snapshot.TotalPathRequestCount; // Sum of active routes for 1 month
