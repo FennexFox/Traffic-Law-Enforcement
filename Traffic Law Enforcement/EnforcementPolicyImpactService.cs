@@ -399,6 +399,9 @@ namespace Traffic_Law_Enforcement
 
             UpdateRollingWindowData();
 
+            // 실시간 경로 수 로그 출력
+            Mod.log.Info($"[RouteCount] routeTotal={s_TotalPathRequestCount}, violationTotal={s_TotalActualPathCount}, avoidanceTotal={s_TotalAvoidedPathCount}");
+
             long currentMonthIndex = EnforcementGameTime.GetMonthIndex(EnforcementGameTime.CurrentTimestampMonthTicks);
             if (!s_HasTrackingState || currentMonthIndex != s_TrackingState.m_MonthIndex)
             {
