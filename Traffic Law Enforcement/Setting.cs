@@ -18,50 +18,6 @@ namespace Traffic_Law_Enforcement
     public class Setting : ModSetting
     {
         // --- Debug logging toggles for save/load ---
-        [Exclude]
-        [SettingsUISection(kCurrentSaveTab, kDebugGroup)]
-        [SettingsUIDisableByCondition(typeof(Setting), nameof(IsCurrentSaveSettingsDisabled))]
-        public bool EnableType2PublicTransportLaneUsageLogging
-        {
-            get => EnforcementGameplaySettingsService.Current.EnableType2PublicTransportLaneUsageLogging;
-            set => UpdateCurrentSaveSettings((ref EnforcementGameplaySettingsState state) => state.EnableType2PublicTransportLaneUsageLogging = value);
-        }
-
-        [Exclude]
-        [SettingsUISection(kCurrentSaveTab, kDebugGroup)]
-        [SettingsUIDisableByCondition(typeof(Setting), nameof(IsCurrentSaveSettingsDisabled))]
-        public bool EnableType3PublicTransportLaneUsageLogging
-        {
-            get => EnforcementGameplaySettingsService.Current.EnableType3PublicTransportLaneUsageLogging;
-            set => UpdateCurrentSaveSettings((ref EnforcementGameplaySettingsState state) => state.EnableType3PublicTransportLaneUsageLogging = value);
-        }
-
-        [Exclude]
-        [SettingsUISection(kCurrentSaveTab, kDebugGroup)]
-        [SettingsUIDisableByCondition(typeof(Setting), nameof(IsCurrentSaveSettingsDisabled))]
-        public bool EnableType4PublicTransportLaneUsageLogging
-        {
-            get => EnforcementGameplaySettingsService.Current.EnableType4PublicTransportLaneUsageLogging;
-            set => UpdateCurrentSaveSettings((ref EnforcementGameplaySettingsState state) => state.EnableType4PublicTransportLaneUsageLogging = value);
-        }
-
-        [Exclude]
-        [SettingsUISection(kCurrentSaveTab, kDebugGroup)]
-        [SettingsUIDisableByCondition(typeof(Setting), nameof(IsCurrentSaveSettingsDisabled))]
-        public bool EnablePathObsoleteSourceLogging
-        {
-            get => EnforcementGameplaySettingsService.Current.EnablePathObsoleteSourceLogging;
-            set => UpdateCurrentSaveSettings((ref EnforcementGameplaySettingsState state) => state.EnablePathObsoleteSourceLogging = value);
-        }
-
-        [SettingsUISection(kNewSaveDefaultsTab, kDebugGroup)]
-        public bool DefaultEnableType2PublicTransportLaneUsageLogging { get; set; }
-        [SettingsUISection(kNewSaveDefaultsTab, kDebugGroup)]
-        public bool DefaultEnableType3PublicTransportLaneUsageLogging { get; set; }
-        [SettingsUISection(kNewSaveDefaultsTab, kDebugGroup)]
-        public bool DefaultEnableType4PublicTransportLaneUsageLogging { get; set; }
-        [SettingsUISection(kNewSaveDefaultsTab, kDebugGroup)]
-        public bool DefaultEnablePathObsoleteSourceLogging { get; set; }
         public const string kCurrentSaveTab = "CurrentSave";
         public const string kNewSaveDefaultsTab = "NewSaveDefaults";
         public const string kPolicyImpactTab = "PolicyImpact";
@@ -619,6 +575,22 @@ namespace Traffic_Law_Enforcement
         public bool EnablePathfindingPenaltyDiagnosticLogging { get; set; }
 
         [Exclude]
+        [SettingsUISection(kDebugTab, kDebugGroup)]
+        public bool EnableType2PublicTransportLaneUsageLogging { get; set; }
+
+        [Exclude]
+        [SettingsUISection(kDebugTab, kDebugGroup)]
+        public bool EnableType3PublicTransportLaneUsageLogging { get; set; }
+
+        [Exclude]
+        [SettingsUISection(kDebugTab, kDebugGroup)]
+        public bool EnableType4PublicTransportLaneUsageLogging { get; set; }
+
+        [Exclude]
+        [SettingsUISection(kDebugTab, kDebugGroup)]
+        public bool EnablePathObsoleteSourceLogging { get; set; }
+
+        [Exclude]
         [SettingsUIButton]
         [SettingsUIDisableByCondition(typeof(Setting), nameof(IsMonthlyChirperPreviewButtonDisabled))]
         [SettingsUISection(kDebugTab, kDebugGroup)]
@@ -639,15 +611,11 @@ namespace Traffic_Law_Enforcement
             // Keep debug logging opt-in by default.
             EnableEstimatedRerouteLogging = false;
             EnableEnforcementEventLogging = false;
-            EnableType3PublicTransportLaneUsageLogging = false;
             EnableType2PublicTransportLaneUsageLogging = false;
+            EnableType3PublicTransportLaneUsageLogging = false;
             EnableType4PublicTransportLaneUsageLogging = false;
             EnablePathfindingPenaltyDiagnosticLogging = false;
             EnablePathObsoleteSourceLogging = false;
-            DefaultEnableType2PublicTransportLaneUsageLogging = false;
-            DefaultEnableType3PublicTransportLaneUsageLogging = false;
-            DefaultEnableType4PublicTransportLaneUsageLogging = false;
-            DefaultEnablePathObsoleteSourceLogging = false;
         }
 
         public EnforcementGameplaySettingsState GetNewSaveDefaultSettings()
@@ -689,19 +657,11 @@ namespace Traffic_Law_Enforcement
                 IntersectionMovementRepeatWindowMonths = DefaultIntersectionMovementRepeatWindowMonths,
                 IntersectionMovementRepeatThreshold = DefaultIntersectionMovementRepeatThreshold,
                 IntersectionMovementRepeatMultiplierPercent = DefaultIntersectionMovementRepeatMultiplierPercent,
-                EnableType2PublicTransportLaneUsageLogging = DefaultEnableType2PublicTransportLaneUsageLogging,
-                EnableType3PublicTransportLaneUsageLogging = DefaultEnableType3PublicTransportLaneUsageLogging,
-                EnableType4PublicTransportLaneUsageLogging = DefaultEnableType4PublicTransportLaneUsageLogging,
-                EnablePathObsoleteSourceLogging = DefaultEnablePathObsoleteSourceLogging,
             };
         }
 
         public void ApplyNewSaveDefaultSettings(EnforcementGameplaySettingsState state)
         {
-            DefaultEnableType2PublicTransportLaneUsageLogging = state.EnableType2PublicTransportLaneUsageLogging;
-            DefaultEnableType3PublicTransportLaneUsageLogging = state.EnableType3PublicTransportLaneUsageLogging;
-            DefaultEnableType4PublicTransportLaneUsageLogging = state.EnableType4PublicTransportLaneUsageLogging;
-            DefaultEnablePathObsoleteSourceLogging = state.EnablePathObsoleteSourceLogging;
             DefaultEnablePublicTransportLaneEnforcement = state.EnablePublicTransportLaneEnforcement;
             DefaultEnableMidBlockCrossingEnforcement = state.EnableMidBlockCrossingEnforcement;
             DefaultEnableIntersectionMovementEnforcement = state.EnableIntersectionMovementEnforcement;
