@@ -175,38 +175,13 @@ namespace Traffic_Law_Enforcement
         {
             m_StaticChirperTemplatesByLocale.Clear();
 
-            Setting setting = Mod.Settings;
-            if (setting == null)
-            {
-                return;
-            }
+            Dictionary<string, string> enTemplates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            LocaleEN.AddMonthlyChirperEntries(enTemplates);
+            m_StaticChirperTemplatesByLocale["en-US"] = enTemplates;
 
-            CacheStaticChirperTemplatesForLocale("en-US", new LocaleEN(setting));
-            CacheStaticChirperTemplatesForLocale("ko-KR", new LocaleKO(setting));
-        }
-
-        private void CacheStaticChirperTemplatesForLocale(string localeId, Colossal.Localization.IDictionarySource source)
-        {
-            Dictionary<string, string> templates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            List<Colossal.Localization.IDictionaryEntryError> errors = new List<Colossal.Localization.IDictionaryEntryError>();
-            Dictionary<string, int> indexCounts = new Dictionary<string, int>();
-
-            foreach (KeyValuePair<string, string> entry in source.ReadEntries(errors, indexCounts))
-            {
-                if (entry.Key == kSenderTextLocaleId ||
-                    entry.Key == kPeriodPointFormatLocaleId ||
-                    entry.Key == kReportHeaderFormatLocaleId ||
-                    entry.Key == kTotalLineFormatLocaleId ||
-                    entry.Key == kPublicTransportLaneLineFormatLocaleId ||
-                    entry.Key == kMidBlockLineFormatLocaleId ||
-                    entry.Key == kIntersectionLineFormatLocaleId ||
-                    entry.Key == kNoRateLocaleId)
-                {
-                    templates[entry.Key] = entry.Value;
-                }
-            }
-
-            m_StaticChirperTemplatesByLocale[NormalizeLocaleId(localeId)] = templates;
+            Dictionary<string, string> koTemplates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            LocaleKO.AddMonthlyChirperEntries(koTemplates);
+            m_StaticChirperTemplatesByLocale["ko-KR"] = koTemplates;
         }
 
         private string GetStaticChirperTemplate(string localeId, string key)
@@ -679,11 +654,6 @@ namespace Traffic_Law_Enforcement
             return (100d * finedViolationCount / denominator).ToString("0.0", culture) + "%";
         }
 
-        private static string FormatZeroPercent()
-        {
-            return 0d.ToString("0.0", GetActiveCulture()) + "%";
-        }
-
         private static string FormatMoney(string localeId, int amount)
         {
             return amount.ToString("N0", GetCultureForLocale(localeId));
@@ -697,18 +667,6 @@ namespace Traffic_Law_Enforcement
         private static string NormalizeLocaleId(string localeId)
         {
             return string.IsNullOrWhiteSpace(localeId) ? kDefaultLocale : localeId;
-        }
-
-        private static CultureInfo GetActiveCulture()
-        {
-            try
-            {
-                return CultureInfo.GetCultureInfo(GetActiveLocaleId());
-            }
-            catch (CultureNotFoundException)
-            {
-                return CultureInfo.GetCultureInfo(kDefaultLocale);
-            }
         }
 
         private static CultureInfo GetCultureForLocale(string localeId)
@@ -727,24 +685,6 @@ namespace Traffic_Law_Enforcement
         {
             string format = GetStaticChirperTemplate(localeId, localeKey);
             return string.Format(GetCultureForLocale(localeId), format, args);
-        }
-
-        private static string LocalizeText(string localeId, string fallback)
-        {
-            if (GameManager.instance?.localizationManager?.activeDictionary != null &&
-                GameManager.instance.localizationManager.activeDictionary.TryGetValue(localeId, out string value) &&
-                !string.IsNullOrWhiteSpace(value))
-            {
-                return value;
-            }
-
-            return fallback;
-        }
-
-        private static string FormatLocalizedText(string localeId, string fallbackFormat, params object[] args)
-        {
-            string format = LocalizeText(localeId, fallbackFormat);
-            return string.Format(GetActiveCulture(), format, args);
         }
 
         private static void GetPeriodParts(long monthTicks, out int year, out int month, out int hour, out int minute)

@@ -736,6 +736,18 @@ namespace Traffic_Law_Enforcement
             m_Setting = setting;
         }
 
+        public static void AddMonthlyChirperEntries(Dictionary<string, string> entries)
+        {
+            entries[MonthlyEnforcementChirperSystem.kSenderTextLocaleId] = "Traffic Law Enforcement";
+            entries[MonthlyEnforcementChirperSystem.kPeriodPointFormatLocaleId] = "{0} {1} {2:00}:{3:00}";
+            entries[MonthlyEnforcementChirperSystem.kReportHeaderFormatLocaleId] = "Traffic enforcement report for {0} to {1}: {2} violations.";
+            entries[MonthlyEnforcementChirperSystem.kTotalLineFormatLocaleId] = "Total: violation rate {0}, suppression failure rate {1}, fines {2}₡.";
+            entries[MonthlyEnforcementChirperSystem.kPublicTransportLaneLineFormatLocaleId] = "PT-lane: violation rate {0}, suppression failure rate {1}, fines {2}₡.";
+            entries[MonthlyEnforcementChirperSystem.kMidBlockLineFormatLocaleId] = "Mid-block: violation rate {0}, suppression failure rate {1}, fines {2}₡.";
+            entries[MonthlyEnforcementChirperSystem.kIntersectionLineFormatLocaleId] = "Intersection: violation rate {0}, suppression failure rate {1}, fines {2}₡.";
+            entries[MonthlyEnforcementChirperSystem.kNoRateLocaleId] = "No request-based rate available yet.";
+        }
+
         public IEnumerable<KeyValuePair<string, string>> ReadEntries(IList<IDictionaryEntryError> errors, Dictionary<string, int> indexCounts)
         {
             Dictionary<string, string> entries = new Dictionary<string, string>
@@ -782,6 +794,7 @@ namespace Traffic_Law_Enforcement
             AddRepeat(entries, nameof(Setting.EnablePublicTransportLaneRepeatPenalty), nameof(Setting.PublicTransportLaneRepeatWindowMonths), nameof(Setting.PublicTransportLaneRepeatThreshold), nameof(Setting.PublicTransportLaneRepeatMultiplierPercent), nameof(Setting.DefaultEnablePublicTransportLaneRepeatPenalty), nameof(Setting.DefaultPublicTransportLaneRepeatWindowMonths), nameof(Setting.DefaultPublicTransportLaneRepeatThreshold), nameof(Setting.DefaultPublicTransportLaneRepeatMultiplierPercent), "PT-lane", "PT-lane");
             AddRepeat(entries, nameof(Setting.EnableMidBlockCrossingRepeatPenalty), nameof(Setting.MidBlockCrossingRepeatWindowMonths), nameof(Setting.MidBlockCrossingRepeatThreshold), nameof(Setting.MidBlockCrossingRepeatMultiplierPercent), nameof(Setting.DefaultEnableMidBlockCrossingRepeatPenalty), nameof(Setting.DefaultMidBlockCrossingRepeatWindowMonths), nameof(Setting.DefaultMidBlockCrossingRepeatThreshold), nameof(Setting.DefaultMidBlockCrossingRepeatMultiplierPercent), "Mid-block", "mid-block crossing");
             AddRepeat(entries, nameof(Setting.EnableIntersectionMovementRepeatPenalty), nameof(Setting.IntersectionMovementRepeatWindowMonths), nameof(Setting.IntersectionMovementRepeatThreshold), nameof(Setting.IntersectionMovementRepeatMultiplierPercent), nameof(Setting.DefaultEnableIntersectionMovementRepeatPenalty), nameof(Setting.DefaultIntersectionMovementRepeatWindowMonths), nameof(Setting.DefaultIntersectionMovementRepeatThreshold), nameof(Setting.DefaultIntersectionMovementRepeatMultiplierPercent), "Intersection", "intersection movement-rule violation");
+            AddMonthlyChirperEntries(entries);
             Add(entries, nameof(Setting.ResetCurrentSaveSettingsToCodeDefaults), "Reset current save settings to code defaults", "Reset the current save's gameplay rules to this mod's built-in code defaults.");
             Add(entries, nameof(Setting.CopyCurrentSaveSettingsToDefaults), "Copy current save settings to defaults", "Copy the current save's gameplay rules into the new-save defaults template.");
             Add(entries, nameof(Setting.ResetDefaultsToCodeDefaults), "Reset defaults to code defaults", "Reset the new-save defaults template to this mod's built-in code defaults.");
@@ -810,14 +823,6 @@ namespace Traffic_Law_Enforcement
             entries[EnforcementPolicyImpactService.kMidBlockLabelLocaleId] = "Mid-block violations";
             entries[EnforcementPolicyImpactService.kIntersectionLabelLocaleId] = "Intersection violations";
             entries[EnforcementPolicyImpactService.kStatisticsLineFormat] = "violation rate {0}, suppression failure rate {1}, fines {2}₡.";
-            entries[MonthlyEnforcementChirperSystem.kSenderTextLocaleId] = "Traffic Law Enforcement";
-            entries[MonthlyEnforcementChirperSystem.kPeriodPointFormatLocaleId] = "{0} {1} {2:00}:{3:00}";
-            entries[MonthlyEnforcementChirperSystem.kReportHeaderFormatLocaleId] = "Traffic enforcement report for {0} to {1}: {2} violations.";
-            entries[MonthlyEnforcementChirperSystem.kTotalLineFormatLocaleId] = "Total: violation rate {0}, suppression failure rate {1}, fines {2}₡.";
-            entries[MonthlyEnforcementChirperSystem.kPublicTransportLaneLineFormatLocaleId] = "PT-lane: violation rate {0}, suppression failure rate {1}, fines {2}₡.";
-            entries[MonthlyEnforcementChirperSystem.kMidBlockLineFormatLocaleId] = "Mid-block: violation rate {0}, suppression failure rate {1}, fines {2}₡.";
-            entries[MonthlyEnforcementChirperSystem.kIntersectionLineFormatLocaleId] = "Intersection: violation rate {0}, suppression failure rate {1}, fines {2}₡.";
-            entries[MonthlyEnforcementChirperSystem.kNoRateLocaleId] = "No request-based rate available yet.";
             Add(entries, nameof(Setting.SendMonthlyChirperPreviewNow), "Send Chirper report now", "Immediately posts one Chirper report for the rolling recent-1-in-game-month window, from one in-game month ago to the moment you press this button.");
             return entries;
         }
@@ -870,6 +875,18 @@ namespace Traffic_Law_Enforcement
             m_Setting = setting;
         }
 
+        public static void AddMonthlyChirperEntries(Dictionary<string, string> entries)
+        {
+            entries[MonthlyEnforcementChirperSystem.kSenderTextLocaleId] = "교통관리과";
+            entries[MonthlyEnforcementChirperSystem.kPeriodPointFormatLocaleId] = "{1}년 {0} {2:00}:{3:00}";
+            entries[MonthlyEnforcementChirperSystem.kReportHeaderFormatLocaleId] = "{0}부터 {1}까지 교통법규 단속 보고입니다. 총 위반 적발 {2}건.";
+            entries[MonthlyEnforcementChirperSystem.kTotalLineFormatLocaleId] = "전체: 위반율 {0}, 억제 실패율 {1}, 벌금 {2}₡.";
+            entries[MonthlyEnforcementChirperSystem.kPublicTransportLaneLineFormatLocaleId] = "대중교통 전용차선: 위반율 {0}, 억제 실패율 {1}, 벌금 {2}₡.";
+            entries[MonthlyEnforcementChirperSystem.kMidBlockLineFormatLocaleId] = "중앙선 침범: 위반율 {0}, 억제 실패율 {1}, 벌금 {2}₡.";
+            entries[MonthlyEnforcementChirperSystem.kIntersectionLineFormatLocaleId] = "교차로 통행규칙: 위반율 {0}, 억제 실패율 {1}, 벌금 {2}₡.";
+            entries[MonthlyEnforcementChirperSystem.kNoRateLocaleId] = "경로탐색 요청 기준 집계 없음";
+        }
+
         public IEnumerable<KeyValuePair<string, string>> ReadEntries(IList<IDictionaryEntryError> errors, Dictionary<string, int> indexCounts)
         {
             Dictionary<string, string> entries = new Dictionary<string, string>
@@ -916,6 +933,7 @@ namespace Traffic_Law_Enforcement
             AddRepeat(entries, nameof(Setting.EnablePublicTransportLaneRepeatPenalty), nameof(Setting.PublicTransportLaneRepeatWindowMonths), nameof(Setting.PublicTransportLaneRepeatThreshold), nameof(Setting.PublicTransportLaneRepeatMultiplierPercent), nameof(Setting.DefaultEnablePublicTransportLaneRepeatPenalty), nameof(Setting.DefaultPublicTransportLaneRepeatWindowMonths), nameof(Setting.DefaultPublicTransportLaneRepeatThreshold), nameof(Setting.DefaultPublicTransportLaneRepeatMultiplierPercent), "대중교통 전용차선", "대중교통 전용차선 위반");
             AddRepeat(entries, nameof(Setting.EnableMidBlockCrossingRepeatPenalty), nameof(Setting.MidBlockCrossingRepeatWindowMonths), nameof(Setting.MidBlockCrossingRepeatThreshold), nameof(Setting.MidBlockCrossingRepeatMultiplierPercent), nameof(Setting.DefaultEnableMidBlockCrossingRepeatPenalty), nameof(Setting.DefaultMidBlockCrossingRepeatWindowMonths), nameof(Setting.DefaultMidBlockCrossingRepeatThreshold), nameof(Setting.DefaultMidBlockCrossingRepeatMultiplierPercent), "중앙선 침범", "중앙선 침범");
             AddRepeat(entries, nameof(Setting.EnableIntersectionMovementRepeatPenalty), nameof(Setting.IntersectionMovementRepeatWindowMonths), nameof(Setting.IntersectionMovementRepeatThreshold), nameof(Setting.IntersectionMovementRepeatMultiplierPercent), nameof(Setting.DefaultEnableIntersectionMovementRepeatPenalty), nameof(Setting.DefaultIntersectionMovementRepeatWindowMonths), nameof(Setting.DefaultIntersectionMovementRepeatThreshold), nameof(Setting.DefaultIntersectionMovementRepeatMultiplierPercent), "교차로 통행규칙 위반", "교차로 통행규칙 위반");
+            AddMonthlyChirperEntries(entries);
             Add(entries, nameof(Setting.ResetCurrentSaveSettingsToCodeDefaults), "현재 세이브 설정을 코드 기본값으로 복원", "현재 세이브의 게임플레이 규칙을 이 모드의 내장 코드 기본값으로 되돌립니다.");
             Add(entries, nameof(Setting.CopyCurrentSaveSettingsToDefaults), "현재 세이브 값을 기본값으로 복사", "현재 세이브의 게임플레이 규칙을 새 세이브 기본값 템플릿으로 복사합니다.");
             Add(entries, nameof(Setting.ResetDefaultsToCodeDefaults), "기본값을 코드 기본값으로 초기화", "새 세이브 기본값 템플릿을 이 모드의 내장 기본값으로 되돌립니다.");
@@ -944,14 +962,6 @@ namespace Traffic_Law_Enforcement
             entries[EnforcementPolicyImpactService.kMidBlockLabelLocaleId] = "중앙선 침범";
             entries[EnforcementPolicyImpactService.kIntersectionLabelLocaleId] = "교차로 통행규칙 위반";
             entries[EnforcementPolicyImpactService.kStatisticsLineFormat] = "위반율 {0}, 억제 실패율 {1}, 벌금 {2}₡.";
-            entries[MonthlyEnforcementChirperSystem.kSenderTextLocaleId] = "교통관리과";
-            entries[MonthlyEnforcementChirperSystem.kPeriodPointFormatLocaleId] = "{1}년 {0} {2:00}:{3:00}";
-            entries[MonthlyEnforcementChirperSystem.kReportHeaderFormatLocaleId] = "{0}부터 {1}까지 교통법규 단속 보고입니다. 총 위반 적발 {2}건.";
-            entries[MonthlyEnforcementChirperSystem.kTotalLineFormatLocaleId] = "전체: 위반율 {0}, 억제 실패율 {1}, 벌금 {2}₡.";
-            entries[MonthlyEnforcementChirperSystem.kPublicTransportLaneLineFormatLocaleId] = "대중교통 전용차선: 위반율 {0}, 억제 실패율 {1}, 벌금 {2}₡.";
-            entries[MonthlyEnforcementChirperSystem.kMidBlockLineFormatLocaleId] = "중앙선 침범:    위반율 {0}, 억제 실패율 {1}, 벌금 {2}₡.";
-            entries[MonthlyEnforcementChirperSystem.kIntersectionLineFormatLocaleId] = "교차로 통행규칙: 위반율 {0}, 억제 실패율 {1}, 벌금 {2}₡.";
-            entries[MonthlyEnforcementChirperSystem.kNoRateLocaleId] = "경로탐색 요청 기준 집계 없음";
             Add(entries, nameof(Setting.SendMonthlyChirperPreviewNow), "지금 Chirper 보고 보내기", "지금 시점부터 게임 시간 1달 전까지의 단속 실적을 Chirper로 즉시 한 번 게시합니다.");
             return entries;
         }
