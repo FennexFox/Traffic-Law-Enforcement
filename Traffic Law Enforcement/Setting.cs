@@ -570,11 +570,12 @@ namespace Traffic_Law_Enforcement
 
         [Exclude]
         [SettingsUISection(kDebugTab, kDebugGroup)]
-        public bool EnableType3PublicTransportLaneUsageLogging { get; set; }
+        public bool EnableType2PublicTransportLaneUsageLogging { get; set; }
 
         [Exclude]
         [SettingsUISection(kDebugTab, kDebugGroup)]
-        public bool EnableType2PublicTransportLaneUsageLogging { get; set; }
+        public bool EnableType3PublicTransportLaneUsageLogging { get; set; }
+
 
         [Exclude]
         [SettingsUISection(kDebugTab, kDebugGroup)]
@@ -785,7 +786,9 @@ namespace Traffic_Law_Enforcement
             Add(entries, nameof(Setting.ResetDefaultsToCodeDefaults), "Reset defaults to code defaults", "Reset the new-save defaults template to this mod's built-in code defaults.");
             Add(entries, nameof(Setting.EnableEstimatedRerouteLogging), "Enable estimated reroute logging", "Debug-only. Writes only 'Pathfinding reroute (estimated)' logs. Turning this off disables reroute debug tracking and logging only; traffic-law detection, fines, repeat-offender logic, and pathfinding penalties still run.");
             Add(entries, nameof(Setting.EnableEnforcementEventLogging), "Enable enforcement event logging", "Debug-only. Writes traffic-law enforcement event logs: PT-lane, mid-block, and intersection violation logs, fine-income collection logs, and bus-lane exit-pressure logs. Turning this off affects logging only; enforcement behavior and penalties still run.");
+            Add(entries, nameof(Setting.EnableType2PublicTransportLaneUsageLogging), "Enable PT-lane usage logging for public vehicles denied to use PT lanes", "Debug-only. Writes logs when vehicles that can use PT lanes in vanilla but are denied to use them by this mod's settings are observed using PT-only lanes. Turning this off affects logging only; permissions and enforcement behavior still run.");
             Add(entries, nameof(Setting.EnableType3PublicTransportLaneUsageLogging), "Enable PT-lane usage logging for non-public vehicles allowed to use PT lanes", "Debug-only. Writes logs when vehicles that cannot use PT lanes in vanilla but are allowed to use them by this mod's settings are observed using PT-only lanes. Turning this off affects logging only; permissions and enforcement behavior still run.");
+            Add(entries, nameof(Setting.EnableType4PublicTransportLaneUsageLogging), "Enable PT-lane usage logging for non-public vehicles denied to use PT lanes", "Debug-only. Writes logs when vehicles that cannot use PT lanes in vanilla and are denied to use them by this mod's settings are observed using PT-only lanes. Turning this off affects logging only; permissions and enforcement behavior still run.");
             Add(entries, nameof(Setting.EnablePathfindingPenaltyDiagnosticLogging), "Enable pathfinding penalty diagnostic logging", "Debug-only. Writes pathfinding money-axis penalty apply logs and shared PathfindCarData diagnostic logs. Turning this off affects logging only; pathfinding penalties still run.");
             Add(entries, nameof(Setting.EnablePathObsoleteSourceLogging), "Enable path obsolete source logging", "Debug-only. Writes logs only when a system actually marks a vehicle PathOwner obsolete, including the source system and key reason data. Turning this off affects logging only; rerouting behavior still runs.");
             Add(entries, nameof(Setting.PolicyImpactTotalStatistics), "Total", "Shows the rolling recent-1-in-game-month total violation rate, suppression failure rate, and fines.");
@@ -804,7 +807,7 @@ namespace Traffic_Law_Enforcement
             entries[EnforcementPolicyImpactService.kPublicTransportLaneLabelLocaleId] = "PT-lane";
             entries[EnforcementPolicyImpactService.kMidBlockLabelLocaleId] = "Mid-block";
             entries[EnforcementPolicyImpactService.kIntersectionLabelLocaleId] = "Intersection";
-            entries["TrafficLawEnforcement.PolicyImpact.Text.StatisticsLineFormat"] = "{0}: violation rate {1}, suppression failure rate {2}, fines {3}₡.";
+            entries[EnforcementPolicyImpactService.kStatisticsLineFormat] = "{0}: violation rate {1}, suppression failure rate {2}, fines {3}₡.";
             entries[MonthlyEnforcementChirperSystem.kSenderTextLocaleId] = "Traffic Law Enforcement";
             entries[MonthlyEnforcementChirperSystem.kPeriodPointFormatLocaleId] = "{0} {1} {2:00}:{3:00}";
             entries[MonthlyEnforcementChirperSystem.kReportHeaderFormatLocaleId] = "Traffic enforcement report for {0} to {1}: {2} violations.";
@@ -921,7 +924,9 @@ namespace Traffic_Law_Enforcement
             Add(entries, nameof(Setting.ResetDefaultsToCodeDefaults), "기본값을 코드 기본값으로 초기화", "새 세이브 기본값 템플릿을 이 모드의 내장 기본값으로 되돌립니다.");
             Add(entries, nameof(Setting.EnableEstimatedRerouteLogging), "추정 우회 경로 로그 기록", "디버그 전용입니다. 교통법규 위반 단속을 피하기 위해 경로를 수정한 교통량의 로그를 기록합니다. 이 옵션을 꺼도 위반 감지, 벌금 부과, 상습 위반 처리, 경로탐색 페널티는 계속 동작합니다.");
             Add(entries, nameof(Setting.EnableEnforcementEventLogging), "교통법규 단속 이벤트 로그 기록", "디버그 전용입니다. 대중교통 전용차선, 중앙선 침범, 교차로 통행규칙 위반 로그와 벌금 수익 징수 로그, 대중교통 전용차선 이탈 압박 로그를 기록합니다. 이 옵션을 꺼도 단속 동작과 벌금 부과는 계속 진행됩니다.");
+            Add(entries, nameof(Setting.EnableType2PublicTransportLaneUsageLogging), "대중교통 전용차선 이용이 불허된 대중교통 차량의 대중교통 전용차선 사용 로그 기록", "디버그 전용입니다. 바닐라 기준으로는 대중교통 전용차선을 이용할 수 있지만 이 모드의 설정에서 대중교통 전용차선 이용이 불허된 차량이 실제로 그 차선을 이용한 사실을 로그로 기록합니다. 이 옵션을 꺼도 통행 허용 여부와 단속 동작은 계속 유지됩니다.");
             Add(entries, nameof(Setting.EnableType3PublicTransportLaneUsageLogging), "대중교통 전용차선 이용이 허가된 비대중교통 차량의 대중교통 전용차선 사용 로그 기록", "디버그 전용입니다. 바닐라 기준으로는 대중교통 전용차선을 이용할 수 없지만 이 모드의 설정에서 대중교통 전용차선 이용이 허가된 차량이 실제로 그 차선을 이용한 사실을 로그로 기록합니다. 이 옵션을 꺼도 통행 허용 여부와 단속 동작은 계속 유지됩니다.");
+            Add(entries, nameof(Setting.EnableType4PublicTransportLaneUsageLogging), "대중교통 전용차선 이용이 불허된 비대중교통 차량의 대중교통 전용차선 사용 로그 기록", "디버그 전용입니다. 바닐라 기준으로도 대중교통 전용차선을 이용할 수 없으며 이 모드의 설정에서도 대중교통 전용차선 이용이 불허된 차량이 실제로 그 차선을 이용한 사실을 로그로 기록합니다. 이 옵션을 꺼도 통행 허용 여부와 단속 동작은 계속 유지됩니다.");
             Add(entries, nameof(Setting.EnablePathfindingPenaltyDiagnosticLogging), "경로탐색 페널티 진단 로그 기록", "디버그 전용입니다. 경로탐색 money-axis 페널티 적용 로그와 shared PathfindCarData 진단 로그를 기록합니다. 이 옵션을 꺼도 경로탐색 페널티 자체는 계속 적용됩니다.");
             Add(entries, nameof(Setting.EnablePathObsoleteSourceLogging), "경로 obsolete 원인 로그 기록", "디버그 전용입니다. 어떤 시스템이 실제로 차량의 PathOwner를 obsolete 상태로 만들었는지와 주요 판단 근거를 로그로 기록합니다. 이 옵션을 꺼도 재경로 동작 자체는 계속 진행됩니다.");
             Add(entries, nameof(Setting.PolicyImpactTotalStatistics), "전체", "게임 시간 최근 1달 기준 전체 위반율, 억제 실패율, 벌금액을 표시합니다.");
@@ -941,7 +946,7 @@ namespace Traffic_Law_Enforcement
             entries[EnforcementPolicyImpactService.kPublicTransportLaneLabelLocaleId] = "대중교통 전용차선";
             entries[EnforcementPolicyImpactService.kMidBlockLabelLocaleId] = "중앙선";
             entries[EnforcementPolicyImpactService.kIntersectionLabelLocaleId] = "교차로";
-            entries["TrafficLawEnforcement.PolicyImpact.Text.StatisticsLineFormat"] = "{0}: 위반율 {1}, 억제 실패율 {2}, 벌금 {3}₡."; // This sentence is used in EnforcementPolicyImpactService.cs
+            entries[EnforcementPolicyImpactService.kStatisticsLineFormat] = "{0}: 위반율 {1}, 억제 실패율 {2}, 벌금 {3}₡."; // This sentence is used in EnforcementPolicyImpactService.cs
             entries[MonthlyEnforcementChirperSystem.kSenderTextLocaleId] = "교통관리과";
             entries[MonthlyEnforcementChirperSystem.kPeriodPointFormatLocaleId] = "{1}년 {0} {2:00}:{3:00}";
             entries[MonthlyEnforcementChirperSystem.kReportHeaderFormatLocaleId] = "{0}부터 {1}까지 교통법규 단속 보고입니다. 총 위반 적발 {2}건.";

@@ -220,6 +220,20 @@ namespace Traffic_Law_Enforcement
             return PublicTransportLanePermissionMask;
         }
 
+        private static string GetRoleDisplayNameEnglish(PublicTransportLaneFlagGrantExperimentRole role)
+        {
+            switch (role)
+            {
+                case PublicTransportLaneFlagGrantExperimentRole.PersonalCar: return "Personal cars";
+                case PublicTransportLaneFlagGrantExperimentRole.DeliveryTruck: return "Delivery trucks";
+                case PublicTransportLaneFlagGrantExperimentRole.CargoTransport: return "Cargo transport vehicles";
+                case PublicTransportLaneFlagGrantExperimentRole.Hearse: return "Hearses";
+                case PublicTransportLaneFlagGrantExperimentRole.PrisonerTransport: return "Prisoner transports";
+                case PublicTransportLaneFlagGrantExperimentRole.ParkMaintenanceVehicle: return "Park maintenance vehicles";
+                default: return "None";
+            }
+        }
+
         public static string DescribeMissingPermissionReason(Entity vehicle, EnforcementGameplaySettingsState settings, ref PublicTransportLaneVehicleTypeLookups lookups)
         {
             PublicTransportLaneVehicleCategory authorizedCategories = GetVanillaAuthorizedCategories(vehicle, ref lookups);
@@ -238,8 +252,7 @@ namespace Traffic_Law_Enforcement
 
             if (additionalRole != PublicTransportLaneFlagGrantExperimentRole.None)
             {
-                var setting = Mod.Settings ?? new Setting(null);
-                var displayName = new LocaleEN(setting).GetPublicTransportLaneFlagGrantExperimentRoleDisplayName(additionalRole);
+                var displayName = GetRoleDisplayNameEnglish(additionalRole);
                 if (settings.AllowsAdditionalPublicTransportLaneRole(additionalRole))
                 {
                     return $"public-transport-lane flags missing for granted role: {displayName}";
@@ -278,9 +291,7 @@ namespace Traffic_Law_Enforcement
 
             if (additionalRole != PublicTransportLaneFlagGrantExperimentRole.None)
             {
-                // Always use English for display/logging
-                var setting = new Setting(null); // Or use your actual Setting instance
-                var displayName = new LocaleEN(setting).GetPublicTransportLaneFlagGrantExperimentRoleDisplayName(additionalRole);
+                var displayName = GetRoleDisplayNameEnglish(additionalRole);
                 names.Add(displayName);
             }
 
