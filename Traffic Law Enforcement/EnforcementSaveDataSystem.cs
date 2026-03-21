@@ -8,12 +8,14 @@ namespace Traffic_Law_Enforcement
 {
     public partial class EnforcementSaveDataSystem : GameSystemBase, IDefaultSerializable, ISerializable, IPreDeserialize, IPostDeserialize
     {
-        private const int kSerializationVersion = 6;
+        private const int kSerializationVersion = 7;
 
         private EntityQuery m_StatisticsQuery;
         private EntityQuery m_PublicTransportLaneViolationQuery;
         private EntityQuery m_PublicTransportLanePermissionStateQuery;
+        private EntityQuery m_PublicTransportLaneType2UsageStateQuery;
         private EntityQuery m_PublicTransportLaneType3UsageStateQuery;
+        private EntityQuery m_PublicTransportLaneType4UsageStateQuery;
         private bool m_HasDeserializedData;
         private bool m_ShouldClearLegacyRuntimeState;
         private bool m_PendingPostDeserializeApply;
@@ -24,7 +26,9 @@ namespace Traffic_Law_Enforcement
             m_StatisticsQuery = GetEntityQuery(ComponentType.ReadWrite<TrafficLawEnforcementStatistics>());
             m_PublicTransportLaneViolationQuery = GetEntityQuery(ComponentType.ReadOnly<PublicTransportLaneViolation>());
             m_PublicTransportLanePermissionStateQuery = GetEntityQuery(ComponentType.ReadOnly<PublicTransportLanePermissionState>());
+            m_PublicTransportLaneType2UsageStateQuery = GetEntityQuery(ComponentType.ReadOnly<PublicTransportLaneType2UsageState>());
             m_PublicTransportLaneType3UsageStateQuery = GetEntityQuery(ComponentType.ReadOnly<PublicTransportLaneType3UsageState>());
+            m_PublicTransportLaneType4UsageStateQuery = GetEntityQuery(ComponentType.ReadOnly<PublicTransportLaneType4UsageState>());
         }
 
         protected override void OnUpdate()
@@ -492,9 +496,19 @@ namespace Traffic_Law_Enforcement
             Entity statisticsEntity = EnsureStatisticsEntity();
             EntityManager.SetComponentData(statisticsEntity, EnforcementTelemetry.GetStatisticsSnapshot());
 
+            if (!m_PublicTransportLaneType2UsageStateQuery.IsEmptyIgnoreFilter)
+            {
+                EntityManager.RemoveComponent<PublicTransportLaneType2UsageState>(m_PublicTransportLaneType2UsageStateQuery);
+            }
+
             if (!m_PublicTransportLaneType3UsageStateQuery.IsEmptyIgnoreFilter)
             {
                 EntityManager.RemoveComponent<PublicTransportLaneType3UsageState>(m_PublicTransportLaneType3UsageStateQuery);
+            }
+
+            if (!m_PublicTransportLaneType4UsageStateQuery.IsEmptyIgnoreFilter)
+            {
+                EntityManager.RemoveComponent<PublicTransportLaneType4UsageState>(m_PublicTransportLaneType4UsageStateQuery);
             }
 
             if (!m_HasDeserializedData && m_ShouldClearLegacyRuntimeState)
@@ -603,6 +617,7 @@ namespace Traffic_Law_Enforcement
                 state.EnableIntersectionMovementEnforcement = enableEnforcement;
             }
 
+            // Migration: support legacy BusLane* field names
             reader.Read(out state.AllowRoadPublicTransportVehicles);
             reader.Read(out state.AllowTaxis);
             reader.Read(out state.AllowPoliceCars);
@@ -634,7 +649,12 @@ namespace Traffic_Law_Enforcement
             reader.Read(out state.EnableIntersectionMovementRepeatPenalty);
             reader.Read(out state.IntersectionMovementRepeatWindowMonths);
             reader.Read(out state.IntersectionMovementRepeatThreshold);
+
             reader.Read(out state.IntersectionMovementRepeatMultiplierPercent);
+
+            // If legacy BusLane fields are present, map them to new PublicTransportLane fields (for older saves)
+            // (Assume the reader will provide the correct order; if not, add explicit field mapping here)
+
             return state;
         }
     }

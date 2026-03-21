@@ -67,12 +67,26 @@ namespace Traffic_Law_Enforcement
         private static void SetupPathfindPrefix(ref SetupQueueItem item)
         {
             EnforcementPolicyImpactService.RecordPathRequest();
+
             World world = World.DefaultGameObjectInjectionWorld;
+            if (world == null)
+            {
+                return;
+            }
+
             EntityManager entityManager = world.EntityManager;
             Entity owner = item.m_Owner;
+            if (!entityManager.HasComponent<Car>(owner))
+            {
+                return;
+            }
+
             Car car = entityManager.GetComponentData<Car>(owner);
+
+            SyncPrivateTrafficIgnoredRules(world, owner, car, ref item);
+
             item.m_Parameters.m_Weights.m_Value.z = 0f;
-        }
+}
 
         private static void CalculateCostPostfix(ref float __result, RuleFlags rules, float2 delta, PathfindParameters ___m_Parameters)
         {
@@ -104,10 +118,10 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
-            BusLaneVehicleTypeLookups typeLookups = BusLaneVehicleTypeLookups.Create(system);
+            PublicTransportLaneVehicleTypeLookups typeLookups = PublicTransportLaneVehicleTypeLookups.Create(system);
             typeLookups.Update(system);
 
-            if (!BusLanePolicy.TryGetDesiredPermissionState(owner, car, EnforcementGameplaySettingsService.Current, ref typeLookups, out bool shouldTrack, out CarFlags desiredMask) || !shouldTrack)
+            if (!PublicTransportLanePolicy.TryGetDesiredPermissionState(owner, car, EnforcementGameplaySettingsService.Current, ref typeLookups, out bool shouldTrack, out CarFlags desiredMask) || !shouldTrack)
             {
                 return;
             }

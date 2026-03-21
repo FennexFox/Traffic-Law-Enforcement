@@ -1,7 +1,7 @@
 namespace Traffic_Law_Enforcement
 {
-    public struct EnforcementGameplaySettingsState
-    {
+        public struct EnforcementGameplaySettingsState
+        {
         public bool EnablePublicTransportLaneEnforcement;
         public bool EnableMidBlockCrossingEnforcement;
         public bool EnableIntersectionMovementEnforcement;
@@ -91,42 +91,42 @@ namespace Traffic_Law_Enforcement
             return EnablePublicTransportLaneEnforcement || EnableMidBlockCrossingEnforcement || EnableIntersectionMovementEnforcement;
         }
 
-        public BusLaneVehicleCategory GetEnabledBusLaneCategories()
+        public PublicTransportLaneVehicleCategory GetEnabledPublicTransportLaneCategories()
         {
-            BusLaneVehicleCategory categories = BusLaneVehicleCategory.None;
-            if (AllowRoadPublicTransportVehicles) categories |= BusLaneVehicleCategory.RoadPublicTransportVehicle;
-            if (AllowTaxis) categories |= BusLaneVehicleCategory.Taxi;
-            if (AllowPoliceCars) categories |= BusLaneVehicleCategory.PoliceCar;
-            if (AllowFireEngines) categories |= BusLaneVehicleCategory.FireEngine;
-            if (AllowAmbulances) categories |= BusLaneVehicleCategory.Ambulance;
-            if (AllowGarbageTrucks) categories |= BusLaneVehicleCategory.GarbageTruck;
-            if (AllowPostVans) categories |= BusLaneVehicleCategory.PostVan;
-            if (AllowRoadMaintenanceVehicles) categories |= BusLaneVehicleCategory.RoadMaintenanceVehicle;
-            if (AllowSnowplows) categories |= BusLaneVehicleCategory.Snowplow;
-            if (AllowVehicleMaintenanceVehicles) categories |= BusLaneVehicleCategory.VehicleMaintenanceVehicle;
+            PublicTransportLaneVehicleCategory categories = PublicTransportLaneVehicleCategory.None;
+            if (AllowRoadPublicTransportVehicles) categories |= PublicTransportLaneVehicleCategory.RoadPublicTransportVehicle;
+            if (AllowTaxis) categories |= PublicTransportLaneVehicleCategory.Taxi;
+            if (AllowPoliceCars) categories |= PublicTransportLaneVehicleCategory.PoliceCar;
+            if (AllowFireEngines) categories |= PublicTransportLaneVehicleCategory.FireEngine;
+            if (AllowAmbulances) categories |= PublicTransportLaneVehicleCategory.Ambulance;
+            if (AllowGarbageTrucks) categories |= PublicTransportLaneVehicleCategory.GarbageTruck;
+            if (AllowPostVans) categories |= PublicTransportLaneVehicleCategory.PostVan;
+            if (AllowRoadMaintenanceVehicles) categories |= PublicTransportLaneVehicleCategory.RoadMaintenanceVehicle;
+            if (AllowSnowplows) categories |= PublicTransportLaneVehicleCategory.Snowplow;
+            if (AllowVehicleMaintenanceVehicles) categories |= PublicTransportLaneVehicleCategory.VehicleMaintenanceVehicle;
             return categories;
         }
 
-        public bool AllowsBusLaneCategories(BusLaneVehicleCategory categories)
+        public bool AllowsPublicTransportLaneCategories(PublicTransportLaneVehicleCategory categories)
         {
-            return (GetEnabledBusLaneCategories() & categories) != BusLaneVehicleCategory.None;
+            return (GetEnabledPublicTransportLaneCategories() & categories) != PublicTransportLaneVehicleCategory.None;
         }
 
-        public bool AllowsAdditionalBusLaneRole(BusLaneFlagGrantExperimentRole role)
+        public bool AllowsAdditionalPublicTransportLaneRole(PublicTransportLaneFlagGrantExperimentRole role)
         {
             switch (role)
             {
-                case BusLaneFlagGrantExperimentRole.PersonalCar:
+                case PublicTransportLaneFlagGrantExperimentRole.PersonalCar:
                     return AllowPersonalCars;
-                case BusLaneFlagGrantExperimentRole.DeliveryTruck:
+                case PublicTransportLaneFlagGrantExperimentRole.DeliveryTruck:
                     return AllowDeliveryTrucks;
-                case BusLaneFlagGrantExperimentRole.CargoTransport:
+                case PublicTransportLaneFlagGrantExperimentRole.CargoTransport:
                     return AllowCargoTransportVehicles;
-                case BusLaneFlagGrantExperimentRole.Hearse:
+                case PublicTransportLaneFlagGrantExperimentRole.Hearse:
                     return AllowHearses;
-                case BusLaneFlagGrantExperimentRole.PrisonerTransport:
+                case PublicTransportLaneFlagGrantExperimentRole.PrisonerTransport:
                     return AllowPrisonerTransports;
-                case BusLaneFlagGrantExperimentRole.ParkMaintenanceVehicle:
+                case PublicTransportLaneFlagGrantExperimentRole.ParkMaintenanceVehicle:
                     return AllowParkMaintenanceVehicles;
                 default:
                     return false;

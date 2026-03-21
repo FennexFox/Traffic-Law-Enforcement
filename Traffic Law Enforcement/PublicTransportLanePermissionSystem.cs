@@ -13,7 +13,8 @@ namespace Traffic_Law_Enforcement
         private EntityQuery m_ChangedCarQuery;
         private EntityQuery m_TrackedQuery;
         private ComponentLookup<PathOwner> m_PathOwnerData;
-        private BusLaneVehicleTypeLookups m_TypeLookups;
+        private ComponentLookup<CarCurrentLane> m_CurrentLaneData;
+        private PublicTransportLaneVehicleTypeLookups m_TypeLookups;
         private bool m_HasEvaluated;
         private bool m_LastEnforcementEnabled;
         private int m_LastSettingsMask;
@@ -28,7 +29,8 @@ namespace Traffic_Law_Enforcement
                 ComponentType.ReadWrite<Car>(),
                 ComponentType.ReadWrite<PublicTransportLanePermissionState>());
             m_PathOwnerData = GetComponentLookup<PathOwner>();
-            m_TypeLookups = BusLaneVehicleTypeLookups.Create(this);
+            m_TypeLookups = PublicTransportLaneVehicleTypeLookups.Create(this);
+            m_CurrentLaneData = GetComponentLookup<CarCurrentLane>(true);
             RequireForUpdate(m_AllCarsQuery);
         }
 
@@ -36,6 +38,7 @@ namespace Traffic_Law_Enforcement
         {
             m_PathOwnerData.Update(this);
             m_TypeLookups.Update(this);
+            m_CurrentLaneData.Update(this);
             EnforcementGameplaySettingsState settings = EnforcementGameplaySettingsService.Current;
 
             bool enforcementEnabled = Mod.IsPublicTransportLaneEnforcementEnabled;
@@ -47,7 +50,7 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
-            int settingsMask = BusLanePolicy.GetPermissionSettingsMask(settings);
+            int settingsMask = PublicTransportLanePolicy.GetPermissionSettingsMask(settings);
             bool fullRefresh = !m_HasEvaluated || !m_LastEnforcementEnabled || settingsMask != m_LastSettingsMask;
             EvaluateQuery(fullRefresh ? m_AllCarsQuery : m_ChangedCarQuery, settings);
 
@@ -83,9 +86,9 @@ namespace Traffic_Law_Enforcement
                 : default;
             CarFlags originalMask = hasState
                 ? state.m_OriginalPublicTransportLaneFlags
-                : (car.m_Flags & BusLanePolicy.PublicTransportLanePermissionMask);
+                : (car.m_Flags & PublicTransportLanePolicy.PublicTransportLanePermissionMask);
 
-            if (!BusLanePolicy.TryGetDesiredPermissionState(vehicle, car, settings, ref m_TypeLookups, out _, out CarFlags desiredMask))
+            if (!PublicTransportLanePolicy.TryGetDesiredPermissionState(vehicle, car, settings, ref m_TypeLookups, out _, out CarFlags desiredMask))
             {
                 if (hasState)
                 {
@@ -95,14 +98,19 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
-            CarFlags currentMask = car.m_Flags & BusLanePolicy.PublicTransportLanePermissionMask;
+            CarFlags currentMask = car.m_Flags & PublicTransportLanePolicy.PublicTransportLanePermissionMask;
             bool emergencyActive = EmergencyVehiclePolicy.IsEmergencyVehicle(car);
             bool emergencyTransition = hasState && state.m_EmergencyActive != (emergencyActive ? (byte)1 : (byte)0);
             bool flagsChanged = currentMask != desiredMask;
 
+            CarFlags obsoleteRelevantMask = CarFlags.UsePublicTransportLanes;
+            bool obsoleteRelevantFlagsChanged =
+                (currentMask & obsoleteRelevantMask) != (desiredMask & obsoleteRelevantMask);
+            bool preferenceOnlyChange = flagsChanged && !obsoleteRelevantFlagsChanged;
+
             if (flagsChanged)
             {
-                car.m_Flags = (car.m_Flags & ~BusLanePolicy.PublicTransportLanePermissionMask) | desiredMask;
+                car.m_Flags = (car.m_Flags & ~PublicTransportLanePolicy.PublicTransportLanePermissionMask) | desiredMask;
                 EntityManager.SetComponentData(vehicle, car);
             }
 
@@ -121,9 +129,18 @@ namespace Traffic_Law_Enforcement
                 EntityManager.SetComponentData(vehicle, updatedState);
             }
 
-            if (flagsChanged || emergencyTransition)
+            if (obsoleteRelevantFlagsChanged || emergencyTransition)
             {
-                MarkPathObsolete(vehicle);
+                string role = PublicTransportLanePolicy.DescribeVehicleRole(vehicle, ref m_TypeLookups);
+                string reason = obsoleteRelevantFlagsChanged
+                    ? "pt-permission-capability-changed"
+                    : "emergency-state-changed";
+                string extra =
+                    $"currentMaskBefore={currentMask}, desiredMask={desiredMask}, originalMask={originalMask}, " +
+                    $"flagsChanged={flagsChanged}, obsoleteRelevantFlagsChanged={obsoleteRelevantFlagsChanged}, " +
+                    $"preferenceOnlyChange={preferenceOnlyChange}, emergencyTransition={emergencyTransition}";
+
+                MarkPathObsolete(vehicle, car, reason, role, extra);
             }
         }
 
@@ -157,17 +174,25 @@ namespace Traffic_Law_Enforcement
 
         private void RestoreVehicle(Entity vehicle, Car car, PublicTransportLanePermissionState state, bool removeState)
         {
-            CarFlags currentMask = car.m_Flags & BusLanePolicy.PublicTransportLanePermissionMask;
+            CarFlags currentMask = car.m_Flags & PublicTransportLanePolicy.PublicTransportLanePermissionMask;
             bool flagsChanged = currentMask != state.m_OriginalPublicTransportLaneFlags;
             if (flagsChanged)
             {
-                car.m_Flags = (car.m_Flags & ~BusLanePolicy.PublicTransportLanePermissionMask) | state.m_OriginalPublicTransportLaneFlags;
+                car.m_Flags = (car.m_Flags & ~PublicTransportLanePolicy.PublicTransportLanePermissionMask) | state.m_OriginalPublicTransportLaneFlags;
                 EntityManager.SetComponentData(vehicle, car);
             }
 
             if (flagsChanged || state.m_EmergencyActive != 0)
             {
-                MarkPathObsolete(vehicle);
+                string role = PublicTransportLanePolicy.DescribeVehicleRole(vehicle, ref m_TypeLookups);
+                string reason = flagsChanged
+                    ? "restore-original-pt-permission-mask"
+                    : "restore-emergency-state";
+                string extra =
+                    $"restoredMask={state.m_OriginalPublicTransportLaneFlags}, " +
+                    $"hadTrackedEmergency={state.m_EmergencyActive != 0}";
+
+                MarkPathObsolete(vehicle, car, reason, role, extra);
             }
 
             if (removeState && EntityManager.HasComponent<PublicTransportLanePermissionState>(vehicle))
@@ -176,7 +201,7 @@ namespace Traffic_Law_Enforcement
             }
         }
 
-        private void MarkPathObsolete(Entity vehicle)
+        private void MarkPathObsolete(Entity vehicle, Car car, string reason, string role, string extra)
         {
             if (!m_PathOwnerData.TryGetComponent(vehicle, out PathOwner pathOwner))
             {
@@ -193,8 +218,24 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
+            PathFlags stateBefore = pathOwner.m_State;
             pathOwner.m_State |= PathFlags.Obsolete;
             EntityManager.SetComponentData(vehicle, pathOwner);
+
+            Entity currentLane = m_CurrentLaneData.TryGetComponent(vehicle, out CarCurrentLane currentLaneData)
+                ? currentLaneData.m_Lane
+                : Entity.Null;
+
+            PathObsoleteTraceLogging.Record(
+                "PT_PERMISSION",
+                vehicle,
+                currentLane,
+                stateBefore,
+                pathOwner.m_State,
+                reason,
+                car,
+                role,
+                extra);
         }
 
         private static bool StatesEqual(PublicTransportLanePermissionState left, PublicTransportLanePermissionState right)
