@@ -9,11 +9,13 @@
 	<!--LongDescription Value="This mod enforces traffic laws by penalizing, 1. U-turning at the midst of road, 2. improper lane usage at intersections, 3. private vehicles' using public transport lanes, 4. blocking intersections. More violation types will be added in future updates." /-->
 	<LongDescription>
 My first CSL2 mod, created with extensive help from GPT-5.4 in Visual Studio Code.
+
 Visual Studio Code의 GPT-5.4에게서 많은 도움을 받아 만든 저의 첫 번째 시스카2 모드입니다.
 
 ## Language Info
 
 Version 0.1.* supports English and Korean.
+
 0.1.* 기준 영어와 한국어를 지원합니다.
 
 ## English Introduction
