@@ -35,6 +35,7 @@ namespace Traffic_Law_Enforcement
         private readonly Dictionary<long, Entity> m_ReportTriggerEntities = new Dictionary<long, Entity>();
         private readonly Dictionary<string, Dictionary<string, string>> m_LocalizedEntriesByLocale = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, MemorySource> m_LocalizedSourcesByLocale = new Dictionary<string, MemorySource>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Dictionary<string, string>> m_StaticChirperTemplatesByLocale = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
 
         private PrefabSystem m_PrefabSystem;
         private CreateChirpSystem m_CreateChirpSystem;
@@ -56,6 +57,7 @@ namespace Traffic_Law_Enforcement
             m_ChirperAccountQuery = GetEntityQuery(ComponentType.ReadOnly<ChirperAccountData>(), ComponentType.ReadOnly<PrefabData>());
             m_InfoviewPrefabQuery = GetEntityQuery(ComponentType.ReadOnly<InfoviewData>(), ComponentType.ReadOnly<PrefabData>());
 
+            CacheStaticChirperTemplates();
             RegisterLocalizationSources();
             EnsureSenderAccount();
 
@@ -166,12 +168,66 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
-            foreach (string localeId in GetLocalizationBuildLocales())
+            ReloadActiveLocale();
+        }
+
+        private void CacheStaticChirperTemplates()
+        {
+            m_StaticChirperTemplatesByLocale.Clear();
+
+            Setting setting = Mod.Settings;
+            if (setting == null)
             {
-                EnsureSenderLocalizationEntry(localeId);
+                return;
             }
 
-            ReloadActiveLocale();
+            CacheStaticChirperTemplatesForLocale("en-US", new LocaleEN(setting));
+            CacheStaticChirperTemplatesForLocale("ko-KR", new LocaleKO(setting));
+        }
+
+        private void CacheStaticChirperTemplatesForLocale(string localeId, Colossal.Localization.IDictionarySource source)
+        {
+            Dictionary<string, string> templates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            List<Colossal.Localization.IDictionaryEntryError> errors = new List<Colossal.Localization.IDictionaryEntryError>();
+            Dictionary<string, int> indexCounts = new Dictionary<string, int>();
+
+            foreach (KeyValuePair<string, string> entry in source.ReadEntries(errors, indexCounts))
+            {
+                if (entry.Key == kSenderTextLocaleId ||
+                    entry.Key == kPeriodPointFormatLocaleId ||
+                    entry.Key == kReportHeaderFormatLocaleId ||
+                    entry.Key == kTotalLineFormatLocaleId ||
+                    entry.Key == kPublicTransportLaneLineFormatLocaleId ||
+                    entry.Key == kMidBlockLineFormatLocaleId ||
+                    entry.Key == kIntersectionLineFormatLocaleId ||
+                    entry.Key == kNoRateLocaleId)
+                {
+                    templates[entry.Key] = entry.Value;
+                }
+            }
+
+            m_StaticChirperTemplatesByLocale[NormalizeLocaleId(localeId)] = templates;
+        }
+
+        private string GetStaticChirperTemplate(string localeId, string key)
+        {
+            localeId = NormalizeLocaleId(localeId);
+
+            if (m_StaticChirperTemplatesByLocale.TryGetValue(localeId, out Dictionary<string, string> localizedTemplates) &&
+                localizedTemplates.TryGetValue(key, out string localizedValue) &&
+                !string.IsNullOrWhiteSpace(localizedValue))
+            {
+                return localizedValue;
+            }
+
+            if (m_StaticChirperTemplatesByLocale.TryGetValue(kDefaultLocale, out Dictionary<string, string> fallbackTemplates) &&
+                fallbackTemplates.TryGetValue(key, out string fallbackValue) &&
+                !string.IsNullOrWhiteSpace(fallbackValue))
+            {
+                return fallbackValue;
+            }
+
+            return key;
         }
 
         private void EnsureSenderAccount()
@@ -365,27 +421,14 @@ namespace Traffic_Law_Enforcement
             return false;
         }
 
-        private bool EnsureLocalizationEntries(string localizationId, string localizedMessage)
-        {
-            string localeId = GetActiveLocaleId();
-            string indexedLocalizationId = LocalizationUtils.AppendIndex(localizationId, new RandomLocalizationIndex(0));
-            bool changed = EnsureSenderLocalizationEntry(localeId);
-            Dictionary<string, string> entries = EnsureLocaleEntries(localeId);
-
-            if (!entries.TryGetValue(indexedLocalizationId, out string currentLocalizedMessage) || currentLocalizedMessage != localizedMessage)
-            {
-                entries[indexedLocalizationId] = localizedMessage;
-                changed = true;
-            }
-
-            return changed;
-        }
-
         private bool EnsureSenderLocalizationEntry(string localeId)
         {
+            localeId = NormalizeLocaleId(localeId);
             Dictionary<string, string> entries = EnsureLocaleEntries(localeId);
-            string senderText = LocalizeTextForLocale(localeId, kSenderTextLocaleId, "Traffic Law Enforcement");
-            if (entries.TryGetValue(kSenderLocalizationId, out string currentSenderText) && currentSenderText == senderText)
+            string senderText = GetStaticChirperTemplate(localeId, kSenderTextLocaleId);
+
+            if (entries.TryGetValue(kSenderLocalizationId, out string currentSenderText) &&
+                currentSenderText == senderText)
             {
                 return false;
             }
@@ -565,47 +608,42 @@ namespace Traffic_Law_Enforcement
             return $"{monthName} {year} {hour:00}:{minute:00}";
         }
 
-        private static string BuildLocalizedMessage(string localeId, MonthlyEnforcementReport report, long periodStartMonthTicks, long periodEndMonthTicks)
+        private string BuildLocalizedMessage(string localeId, MonthlyEnforcementReport report, long periodStartMonthTicks, long periodEndMonthTicks)
         {
             return
                 FormatLocalizedTextForLocale(
                     localeId,
                     kReportHeaderFormatLocaleId,
-                    "Traffic enforcement report for {0} to {1}: {2} violations.",
                     FormatPeriodPoint(localeId, periodStartMonthTicks),
                     FormatPeriodPoint(localeId, periodEndMonthTicks),
                     report.TotalViolationCount) + "\n" +
                 FormatLocalizedTextForLocale(
                     localeId,
                     kTotalLineFormatLocaleId,
-                    "Total: violation rate {0}, suppression failure rate {1}, fines {2}\u20A1.",
                     FormatViolationRate(localeId, report.TotalViolationCount, report.m_TotalPathRequestCount),
                     FormatSuppressionFailureRate(localeId, report.TotalViolationCount, report.m_TotalAvoidedPathCount),
                     FormatMoney(localeId, report.m_TotalFineAmount)) + "\n" +
                 FormatLocalizedTextForLocale(
                     localeId,
                     kPublicTransportLaneLineFormatLocaleId,
-                    "PT-lane: violation rate {0}, suppression failure rate {1}, fines {2}\u20A1.",
                     FormatViolationRate(localeId, report.m_PublicTransportLaneCount, report.m_TotalPathRequestCount),
                     FormatSuppressionFailureRate(localeId, report.m_PublicTransportLaneCount, report.m_PublicTransportLaneAvoidedEventCount),
                     FormatMoney(localeId, report.m_PublicTransportLaneFineAmount)) + "\n" +
                 FormatLocalizedTextForLocale(
                     localeId,
                     kMidBlockLineFormatLocaleId,
-                    "Mid-block: violation rate {0}, suppression failure rate {1}, fines {2}\u20A1.",
                     FormatViolationRate(localeId, report.m_MidBlockCrossingCount, report.m_TotalPathRequestCount),
                     FormatSuppressionFailureRate(localeId, report.m_MidBlockCrossingCount, report.m_MidBlockCrossingAvoidedEventCount),
                     FormatMoney(localeId, report.m_MidBlockCrossingFineAmount)) + "\n" +
                 FormatLocalizedTextForLocale(
                     localeId,
                     kIntersectionLineFormatLocaleId,
-                    "Intersection: violation rate {0}, suppression failure rate {1}, fines {2}\u20A1.",
                     FormatViolationRate(localeId, report.m_IntersectionMovementCount, report.m_TotalPathRequestCount),
                     FormatSuppressionFailureRate(localeId, report.m_IntersectionMovementCount, report.m_IntersectionMovementAvoidedEventCount),
                     FormatMoney(localeId, report.m_IntersectionMovementFineAmount));
         }
 
-        private static string FormatPeriodPoint(string localeId, long monthTicks)
+        private string FormatPeriodPoint(string localeId, long monthTicks)
         {
             GetPeriodParts(monthTicks, out int year, out int month, out int hour, out int minute);
             CultureInfo culture = GetCultureForLocale(localeId);
@@ -615,7 +653,7 @@ namespace Traffic_Law_Enforcement
                 monthText = month.ToString(CultureInfo.InvariantCulture);
             }
 
-            return FormatLocalizedTextForLocale(localeId, kPeriodPointFormatLocaleId, "{0} {1} {2:00}:{3:00}", monthText, year, hour, minute);
+            return FormatLocalizedTextForLocale(localeId, kPeriodPointFormatLocaleId, monthText, year, hour, minute);
         }
 
         private static string FormatViolationRate(string localeId, int finedViolationCount, int avoidedPathCount)
@@ -673,18 +711,6 @@ namespace Traffic_Law_Enforcement
             }
         }
 
-        private static string LocalizeTextForLocale(string localeId, string localeKey, string fallback)
-        {
-            localeId = NormalizeLocaleId(localeId);
-
-            if (string.Equals(localeId, GetActiveLocaleId(), StringComparison.OrdinalIgnoreCase))
-            {
-                return LocalizeText(localeKey, fallback);
-            }
-
-            return fallback;
-        }
-
         private static CultureInfo GetCultureForLocale(string localeId)
         {
             try
@@ -697,9 +723,9 @@ namespace Traffic_Law_Enforcement
             }
         }
 
-        private static string FormatLocalizedTextForLocale(string localeId, string localeKey, string fallbackFormat, params object[] args)
+        private string FormatLocalizedTextForLocale(string localeId, string localeKey, params object[] args)
         {
-            string format = LocalizeTextForLocale(localeId, localeKey, fallbackFormat);
+            string format = GetStaticChirperTemplate(localeId, localeKey);
             return string.Format(GetCultureForLocale(localeId), format, args);
         }
 
