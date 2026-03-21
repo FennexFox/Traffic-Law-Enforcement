@@ -165,7 +165,7 @@ namespace Traffic_Law_Enforcement
                     SyncAccessOriginWatch(vehicle, currentLane.m_Lane);
 
                     ResetDuplicateSuppressionIfPathChanged(vehicle, pathOwner);
-                    ResetRepeatInvalidationIfPathChanged(vehicle, pathOwner);
+                    ResetRepeatInvalidationIfPathChanged(vehicle, pathOwner, currentLane.m_Lane);
                     if ((pathOwner.m_State & (PathFlags.Pending | PathFlags.Obsolete)) != 0)
                     {
                         continue;
@@ -383,12 +383,35 @@ namespace Traffic_Law_Enforcement
             return 1;
         }
 
-        private void ResetRepeatInvalidationIfPathChanged(Entity vehicle, PathOwner pathOwner)
+        private void ResetRepeatInvalidationIfPathChanged(Entity vehicle, PathOwner pathOwner, Entity currentLane)
         {
-            if ((pathOwner.m_State & (PathFlags.Pending | PathFlags.Updated)) != 0)
+            PathFlags resetFlags = pathOwner.m_State & (PathFlags.Pending | PathFlags.Updated);
+            if (resetFlags == 0)
             {
-                m_RepeatInvalidationStates.Remove(vehicle);
+                return;
             }
+
+            if (!m_RepeatInvalidationStates.TryGetValue(vehicle, out RepeatCenterlineInvalidationState state))
+            {
+                return;
+            }
+
+            if (EnforcementLoggingPolicy.ShouldLogEnforcementEvents())
+            {
+                string role = m_CarData.HasComponent(vehicle)
+                    ? PublicTransportLanePolicy.DescribeVehicleRole(vehicle, ref m_TypeLookups)
+                    : "Unknown";
+
+                Mod.log.Info(
+                    $"CENTERLINE repeat-tracking reset: vehicle={vehicle}, role={role}, " +
+                    $"repeatCountBeforeReset={state.Count}, resetFlags={resetFlags}, " +
+                    $"currentLaneNow={currentLane}, trackedCurrentLane={state.CurrentLane}, " +
+                    $"trackedSourceLane={state.SourceLane}, trackedTargetLane={state.TargetLane}, " +
+                    $"trackedTransitionIndex={state.TransitionIndex}, trackedTransitionFamily={state.TransitionFamily}, " +
+                    $"trackedReason={state.Reason}");
+            }
+
+            m_RepeatInvalidationStates.Remove(vehicle);
         }
 
         private void RecordInvalidationContext(Entity currentLane)
