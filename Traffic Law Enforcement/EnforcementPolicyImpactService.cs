@@ -480,7 +480,7 @@ namespace Traffic_Law_Enforcement
 
         }
 
-        public static string GetCurrentPeriodSummaryText()
+        public static string GetCurrentPeriodStatisticsText()
         {
             if (!IsGameplayContextAvailable())
             {
@@ -493,59 +493,45 @@ namespace Traffic_Law_Enforcement
             }
 
             RollingWindowSnapshot snapshot = GetRollingWindowSnapshot();
-            // Use the aggregated value of all vehicle entity routes as denominator
-            int violationNumerator = snapshot.PublicTransportLaneActualCount + snapshot.MidBlockCrossingActualCount + snapshot.IntersectionMovementActualCount;
-            int vehicleRouteDenominator = snapshot.TotalPathRequestCount;
-            int suppressionFailureDenominator = violationNumerator + snapshot.TotalAvoidedPathCount;
-            if (vehicleRouteDenominator <= 0 && suppressionFailureDenominator <= 0)
-            {
-                return LocalizeText(kNoDataLocaleId, "No pathfinding requests, fined violations, or rerouted pathfinding outcomes that avoided penalized routes have been recorded yet.");
-            }
 
-            string violationRate = FormatRatio(violationNumerator, vehicleRouteDenominator);
-            string suppressionFailureRate = FormatRatio(violationNumerator, suppressionFailureDenominator);
-            string fines = FormatMoney(snapshot.TotalFineAmount);
+            // Total
+            int violationNumeratorTotal = snapshot.PublicTransportLaneActualCount + snapshot.MidBlockCrossingActualCount + snapshot.IntersectionMovementActualCount;
+            int vehicleRouteDenominatorTotal = snapshot.TotalPathRequestCount;
+            int suppressionFailureDenominatorTotal = violationNumeratorTotal + snapshot.TotalAvoidedPathCount;
+            string violationRateTotal = FormatRatio(violationNumeratorTotal, vehicleRouteDenominatorTotal);
+            string suppressionFailureRateTotal = FormatRatio(violationNumeratorTotal, suppressionFailureDenominatorTotal);
+            string finesTotal = FormatMoney(snapshot.TotalFineAmount);
             string totalLabel = LocalizeText(kTotalLabelLocaleId, "Total");
-            return FormatLocalizedText(kSummaryLineFormatLocaleId, "{0}: violation rate {1}, suppression failure rate {2}, fines {3}", totalLabel, violationRate, suppressionFailureRate, fines);
-        }
+            string totalLine = FormatLocalizedText(kSummaryLineFormatLocaleId, "{0}: violation rate {1}, suppression failure rate {2}, fines {3}", totalLabel, violationRateTotal, suppressionFailureRateTotal, finesTotal);
 
-        public static string GetCurrentPeriodDetailsText()
-        {
-            if (!IsGameplayContextAvailable())
-            {
-                return LocalizeText(kLoadedSaveOnlyLocaleId, "Available only in a loaded save.");
-            }
+            // PT-lane rule violation
+            int violationNumerator1 = snapshot.PublicTransportLaneActualCount;
+            int suppressionFailureDenominator1 = violationNumerator1 + snapshot.PublicTransportLaneAvoidedEventCount;
+            string violationRate1 = FormatRatio(violationNumerator1, vehicleRouteDenominatorTotal);
+            string suppressionFailureRate1 = FormatRatio(violationNumerator1, suppressionFailureDenominator1);
+            string fines1 = FormatMoney(snapshot.PublicTransportLaneFineAmount);
+            string label1 = LocalizeText(kPublicTransportLaneLabelLocaleId, "Public Transport Lane");
+            string line1 = FormatLocalizedText(kSummaryLineFormatLocaleId, "{0}: violation rate {1}, suppression failure rate {2}, fines {3}", label1, violationRate1, suppressionFailureRate1, fines1);
 
-            if (!EnforcementGameTime.IsInitialized)
-            {
-                return LocalizeText(kWaitingForTimeLocaleId, "Waiting for in-game time initialization.");
-            }
+            // Mid-block crossing
+            int violationNumerator2 = snapshot.MidBlockCrossingActualCount;
+            int suppressionFailureDenominator2 = violationNumerator2 + snapshot.MidBlockCrossingAvoidedEventCount;
+            string violationRate2 = FormatRatio(violationNumerator2, vehicleRouteDenominatorTotal);
+            string suppressionFailureRate2 = FormatRatio(violationNumerator2, suppressionFailureDenominator2);
+            string fines2 = FormatMoney(snapshot.MidBlockCrossingFineAmount);
+            string label2 = LocalizeText(kMidBlockLabelLocaleId, "Mid-block Crossing");
+            string line2 = FormatLocalizedText(kSummaryLineFormatLocaleId, "{0}: violation rate {1}, suppression failure rate {2}, fines {3}", label2, violationRate2, suppressionFailureRate2, fines2);
 
-            RollingWindowSnapshot snapshot = GetRollingWindowSnapshot();
-            StringBuilder builder = new StringBuilder(640);
-            int vehicleRouteDenominator = snapshot.TotalPathRequestCount;
-            AppendRateAndFineLine(builder, LocalizeText(kTotalLabelLocaleId, "Total"), snapshot.TotalActualPathCount, vehicleRouteDenominator, snapshot.TotalAvoidedPathCount, snapshot.TotalFineAmount);
-            AppendRateAndFineLine(builder, LocalizeText(kPublicTransportLaneLabelLocaleId, "PT-lane"), snapshot.PublicTransportLaneActualCount, vehicleRouteDenominator, snapshot.PublicTransportLaneAvoidedEventCount, snapshot.PublicTransportLaneFineAmount);
-            AppendRateAndFineLine(builder, LocalizeText(kMidBlockLabelLocaleId, "Mid-block"), snapshot.MidBlockCrossingActualCount, vehicleRouteDenominator, snapshot.MidBlockCrossingAvoidedEventCount, snapshot.MidBlockCrossingFineAmount);
-            AppendRateAndFineLine(builder, LocalizeText(kIntersectionLabelLocaleId, "Intersection"), snapshot.IntersectionMovementActualCount, vehicleRouteDenominator, snapshot.IntersectionMovementAvoidedEventCount, snapshot.IntersectionMovementFineAmount);
-            builder.AppendLine();
-            builder.Append(LocalizeText(kNoteLocaleId, "Note: A counts pathfinding requests, not unique trips. D counts estimated rerouted pathfinding outcomes that gave up a penalized route. Per-type D counts can overlap when one reroute avoids multiple penalty types."));
-            return builder.ToString();
-        }
+            // Intersection rule violation
+            int violationNumerator3 = snapshot.IntersectionMovementActualCount;
+            int suppressionFailureDenominator3 = violationNumerator3 + snapshot.IntersectionMovementAvoidedEventCount;
+            string violationRate3 = FormatRatio(violationNumerator3, vehicleRouteDenominatorTotal);
+            string suppressionFailureRate3 = FormatRatio(violationNumerator3, suppressionFailureDenominator3);
+            string fines3 = FormatMoney(snapshot.IntersectionMovementFineAmount);
+            string label3 = LocalizeText(kIntersectionLabelLocaleId, "Intersection");
+            string line3 = FormatLocalizedText(kSummaryLineFormatLocaleId, "{0}: violation rate {1}, suppression failure rate {2}, fines {3}", label3, violationRate3, suppressionFailureRate3, fines3);
 
-        public static string GetCurrentPeriodPublicTransportLaneText()
-        {
-            return GetCurrentPeriodLineText(kPublicTransportLaneLabelLocaleId, "PT-lane", snapshot => snapshot.PublicTransportLaneActualCount, snapshot => snapshot.PublicTransportLaneAvoidedEventCount, snapshot => snapshot.PublicTransportLaneFineAmount);
-        }
-
-        public static string GetCurrentPeriodMidBlockText()
-        {
-            return GetCurrentPeriodLineText(kMidBlockLabelLocaleId, "Mid-block", snapshot => snapshot.MidBlockCrossingActualCount, snapshot => snapshot.MidBlockCrossingAvoidedEventCount, snapshot => snapshot.MidBlockCrossingFineAmount);
-        }
-
-        public static string GetCurrentPeriodIntersectionText()
-        {
-            return GetCurrentPeriodLineText(kIntersectionLabelLocaleId, "Intersection", snapshot => snapshot.IntersectionMovementActualCount, snapshot => snapshot.IntersectionMovementAvoidedEventCount, snapshot => snapshot.IntersectionMovementFineAmount);
+            return string.Join("\n", new[] { totalLine, line1, line2, line3 });
         }
 
         public static RollingWindowSnapshot GetRollingWindowSnapshot()

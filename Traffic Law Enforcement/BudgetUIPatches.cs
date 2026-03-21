@@ -201,7 +201,7 @@ namespace Traffic_Law_Enforcement
                 UpdateBinding(s_IncomeValuesBindingField?.GetValue(system) as IUpdateBinding);
                 UpdateBinding(s_TotalIncomeBindingField?.GetValue(system) as IUpdateBinding);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
             }
         }

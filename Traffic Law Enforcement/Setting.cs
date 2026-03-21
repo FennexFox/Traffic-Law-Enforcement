@@ -559,21 +559,10 @@ namespace Traffic_Law_Enforcement
         [SettingsUISection(kDebugTab, kDebugGroup)]
         public bool EnablePathfindingPenaltyDiagnosticLogging { get; set; }
 
-        [Exclude]
-        [SettingsUISection(kPolicyImpactTab, kPolicyImpactGroup)]
-        public string PolicyImpactSummary => EnforcementPolicyImpactService.GetCurrentPeriodSummaryText();
 
         [Exclude]
         [SettingsUISection(kPolicyImpactTab, kPolicyImpactGroup)]
-        public string PolicyImpactPublicTransportLaneSummary => EnforcementPolicyImpactService.GetCurrentPeriodPublicTransportLaneText();
-
-        [Exclude]
-        [SettingsUISection(kPolicyImpactTab, kPolicyImpactGroup)]
-        public string PolicyImpactMidBlockSummary => EnforcementPolicyImpactService.GetCurrentPeriodMidBlockText();
-
-        [Exclude]
-        [SettingsUISection(kPolicyImpactTab, kPolicyImpactGroup)]
-        public string PolicyImpactIntersectionSummary => EnforcementPolicyImpactService.GetCurrentPeriodIntersectionText();
+        public string PolicyImpactStatisticsSummary => EnforcementPolicyImpactService.GetCurrentPeriodStatisticsText();
 
         [Exclude]
         [SettingsUIButton]
@@ -771,10 +760,7 @@ namespace Traffic_Law_Enforcement
             Add(entries, nameof(Setting.EnableEnforcementEventLogging), "Enable enforcement event logging", "Debug-only. Writes traffic-law enforcement event logs: PT-lane, mid-block, and intersection violation logs, fine-income collection logs, and bus-lane exit-pressure logs. Turning this off affects logging only; enforcement behavior and penalties still run.");
             Add(entries, nameof(Setting.EnableAllowedType3PublicTransportLaneUsageLogging), "Enable PT-lane usage logging for non-public vehicles allowed to use PT lanes", "Debug-only. Writes logs when vehicles that cannot use PT lanes in vanilla but are allowed to use them by this mod's settings are observed using PT-only lanes. Turning this off affects logging only; permissions and enforcement behavior still run.");
             Add(entries, nameof(Setting.EnablePathfindingPenaltyDiagnosticLogging), "Enable pathfinding penalty diagnostic logging", "Debug-only. Writes pathfinding money-axis penalty apply logs and shared PathfindCarData diagnostic logs. Turning this off affects logging only; pathfinding penalties still run.");
-            Add(entries, nameof(Setting.PolicyImpactSummary), "Total", "Shows the rolling recent-1-in-game-month total violation rate F / A, suppression failure rate F / (F + D), and total fines collected in that window.\nF is actual fined violations that still occurred. A is the total number of pathfinding requests. D is the estimated number of rerouted pathfinding outcomes that gave up a penalized route.");
-            Add(entries, nameof(Setting.PolicyImpactPublicTransportLaneSummary), "PT-lane", "Shows the rolling recent-1-in-game-month PT-lane violation rate F / A, suppression failure rate F / (F + D), and total fines collected in that window for that violation type.\nF is actual fined violations that still occurred. A is the total number of pathfinding requests. D is the estimated number of rerouted pathfinding outcomes that gave up a penalized route.");
-            Add(entries, nameof(Setting.PolicyImpactMidBlockSummary), "Mid-block", "Shows the rolling recent-1-in-game-month mid-block violation rate F / A, suppression failure rate F / (F + D), and total fines collected in that window for that violation type.\nF is actual fined violations that still occurred. A is the total number of pathfinding requests. D is the estimated number of rerouted pathfinding outcomes that gave up a penalized route.");
-            Add(entries, nameof(Setting.PolicyImpactIntersectionSummary), "Intersection", "Shows the rolling recent-1-in-game-month intersection violation rate F / A, suppression failure rate F / (F + D), and total fines collected in that window for that violation type.\nF is actual fined violations that still occurred. A is the total number of pathfinding requests. D is the estimated number of rerouted pathfinding outcomes that gave up a penalized route.");
+            Add(entries, nameof(Setting.PolicyImpactStatisticsSummary), "Violation Statistics", "Shows the overall and per-type violation rate, suppression failure rate, and total fines for the most recent in-game month. F is the number of actual violations fined, A is the total number of pathfinding requests, and D is the number of pathfinding outcomes estimated to have avoided penalized routes.");
             entries[EnforcementPolicyImpactService.kLoadedSaveOnlyLocaleId] = "Available only in a loaded save.";
             entries[EnforcementPolicyImpactService.kWaitingForTimeLocaleId] = "Waiting for in-game time initialization.";
             entries[EnforcementPolicyImpactService.kNoDataLocaleId] = "No pathfinding requests, fined violations, or rerouted pathfinding outcomes that avoided penalized routes have been recorded yet.";
@@ -813,12 +799,12 @@ namespace Traffic_Law_Enforcement
             Add(entries, defaultName, label, "Default for newly created saves. " + desc);
         }
 
-        private void AddRepeat(Dictionary<string, string> entries, string currentEnableName, string currentWindowName, string currentThresholdName, string currentMultiplierName, string defaultEnableName, string defaultWindowName, string defaultThresholdName, string defaultMultiplierName, string shortLabel, string sentenceLabel)
+        private void AddRepeat(Dictionary<string, string> entries, string currentEnableName, string currentWindowName, string currentThresholdName, string currentMultiplierName, string defaultEnableName, string defaultWindowName, string defaultThresholdName, string defaultMultiplierName, string label, string sentenceLabel)
         {
-            AddGameplay(entries, currentEnableName, defaultEnableName, $"Enable {shortLabel} repeat penalty", $"Apply enhanced fines to repeated {sentenceLabel} violators.");
-            AddGameplay(entries, currentWindowName, defaultWindowName, $"{Capitalize(shortLabel)} repeat window (in-game months)", $"Rolling in-game month window used to count repeated {sentenceLabel} violations for the same vehicle. This uses in-game time, not real-world time. 12 in-game months = 1 in-game year. Under vanilla/default timing, 1 in-game month = 1 in-game day. Mods that change day/month flow can skew repeat-offender timing.");
-            AddGameplay(entries, currentThresholdName, defaultThresholdName, $"{Capitalize(shortLabel)} repeat threshold", $"Violation count within the repeat window required before enhanced {sentenceLabel} fines apply.");
-            AddGameplay(entries, currentMultiplierName, defaultMultiplierName, $"{Capitalize(shortLabel)} repeat multiplier", $"Multiplier applied to {sentenceLabel} fines after the repeat threshold is reached.");
+            AddGameplay(entries, currentEnableName, defaultEnableName, $"{label} Repeat Offense Penalty Enabled", $"Applies higher fines to vehicles that repeatedly commit {sentenceLabel} violations.");
+            AddGameplay(entries, currentWindowName, defaultWindowName, $"{label} Repeat Offense Window (in-game months)", $"The in-game month window to consider repeated {sentenceLabel} violations for the same vehicle. Uses in-game time, not real-world time. 12 in-game months = 1 in-game year. Under vanilla/default timing, 1 in-game month = 1 in-game day. Mods that change day/month flow can skew repeat-offender timing.");
+            AddGameplay(entries, currentThresholdName, defaultThresholdName, $"{label} Repeat Offense Threshold", $"Number of {sentenceLabel} violations within the window required before enhanced fines apply.");
+            AddGameplay(entries, currentMultiplierName, defaultMultiplierName, $"{label} Penalty Multiplier", $"Multiplier applied to {sentenceLabel} fines after the repeat threshold is reached.");
         }
 
         private static string Capitalize(string value)
@@ -889,10 +875,7 @@ namespace Traffic_Law_Enforcement
             Add(entries, nameof(Setting.EnableEnforcementEventLogging), "교통법규 단속 이벤트 로그 기록", "디버그 전용입니다. 대중교통 전용차선, 중앙선 침범, 교차로 통행규칙 위반 로그와 벌금 수익 징수 로그, 대중교통 전용차선 이탈 압박 로그를 기록합니다. 이 옵션을 꺼도 단속 동작과 벌금 부과는 계속 진행됩니다.");
             Add(entries, nameof(Setting.EnableAllowedType3PublicTransportLaneUsageLogging), "대중교통 전용차선 이용이 허가된 비대중교통 차량의 대중교통 전용차선 사용 로그 기록", "디버그 전용입니다. 바닐라 기준으로는 대중교통 전용차선을 이용할 수 없지만 이 모드의 설정에서 대중교통 전용차선 이용이 허가된 차량이 실제로 그 차선을 이용한 사실을 로그로 기록합니다. 이 옵션을 꺼도 통행 허용 여부와 단속 동작은 계속 유지됩니다.");
             Add(entries, nameof(Setting.EnablePathfindingPenaltyDiagnosticLogging), "경로탐색 페널티 진단 로그 기록", "디버그 전용입니다. 경로탐색 money-axis 페널티 적용 로그와 shared PathfindCarData 진단 로그를 기록합니다. 이 옵션을 꺼도 경로탐색 페널티 자체는 계속 적용됩니다.");
-            Add(entries, nameof(Setting.PolicyImpactSummary), "전체", "게임 시간으로 최근 1달 기준 전체 위반율 F / A, 억제 실패율 F / (F + D), 그리고 그 구간에서 징수된 총 벌금액을 표시합니다.\nF는 실제 벌금이 부과된 위반이고, A는 전체 경로탐색 요청 수이며, D는 단속 가능성 때문에 벌점 경로를 포기한 것으로 추정되는 경로탐색 결과 수입니다.");
-            Add(entries, nameof(Setting.PolicyImpactPublicTransportLaneSummary), "대중교통 전용차선", "게임 시간으로 최근 1달 기준 대중교통 전용차선 위반 유형의 위반율 F / A, 억제 실패율 F / (F + D), 그리고 그 구간에서 징수된 벌금 총액을 표시합니다.\nF는 실제 벌금이 부과된 위반이고, A는 전체 경로탐색 요청 수이며, D는 단속 가능성 때문에 벌점 경로를 포기한 것으로 추정되는 경로탐색 결과 수입니다.");
-            Add(entries, nameof(Setting.PolicyImpactMidBlockSummary), "중앙선", "게임 시간으로 최근 1달 기준 중앙선 침범 위반 유형의 위반율 F / A, 억제 실패율 F / (F + D), 그리고 그 구간에서 징수된 벌금 총액을 표시합니다.\nF는 실제 벌금이 부과된 위반이고, A는 전체 경로탐색 요청 수이며, D는 단속 가능성 때문에 벌점 경로를 포기한 것으로 추정되는 경로탐색 결과 수입니다.");
-            Add(entries, nameof(Setting.PolicyImpactIntersectionSummary), "교차로", "게임 시간으로 최근 1달 기준 교차로 통행규칙 위반 유형의 위반율 F / A, 억제 실패율 F / (F + D), 그리고 그 구간에서 징수된 벌금 총액을 표시합니다.\nF는 실제 벌금이 부과된 위반이고, A는 전체 경로탐색 요청 수이며, D는 단속 가능성 때문에 벌점 경로를 포기한 것으로 추정되는 경로탐색 결과 수입니다.");
+            Add(entries, nameof(Setting.PolicyImpactStatisticsSummary), "위반율 지표", "최근 1달 기준 전체 및 항목별 위반율, 억제 실패율, 벌금 총액을 한 번에 표시합니다. F는 실제 벌금이 부과된 위반이고, A는 전체 경로탐색 요청 수이며, D는 단속 가능성 때문에 벌점 경로를 포기한 것으로 추정되는 경로탐색 결과 수입니다.");
             entries[EnforcementPolicyImpactService.kLoadedSaveOnlyLocaleId] = "세이브를 로드한 뒤 표시됩니다.";
             entries[EnforcementPolicyImpactService.kWaitingForTimeLocaleId] = "인게임 시간 초기화 대기 중입니다.";
             entries[EnforcementPolicyImpactService.kNoDataLocaleId] = "경로탐색 요청, 실제 위반, 또는 벌점 경로를 피한 것으로 추정되는 경로탐색 결과에 대한 기록이 아직 없습니다.";

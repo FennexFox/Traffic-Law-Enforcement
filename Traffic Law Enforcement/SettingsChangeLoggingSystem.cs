@@ -84,25 +84,25 @@ namespace Traffic_Law_Enforcement
 
         private static void LogChange(string inGameTimeLabel, string settingName, bool previous, bool current)
         {
-            if (previous == current)
+            if (previous != current)
             {
-                return;
+                Mod.log.Info($"[Settings] {settingName} changed: {previous} -> {current} at {inGameTimeLabel}");
             }
         }
 
         private static void LogChange(string inGameTimeLabel, string settingName, int previous, int current)
         {
-            if (previous == current)
+            if (previous != current)
             {
-                return;
+                Mod.log.Info($"[Settings] {settingName} changed: {previous} -> {current} at {inGameTimeLabel}");
             }
         }
 
         private static void LogChange(string inGameTimeLabel, string settingName, float previous, float current)
         {
-            if (Mathf.Approximately(previous, current))
+            if (!Mathf.Approximately(previous, current))
             {
-                return;
+                Mod.log.Info($"[Settings] {settingName} changed: {previous} -> {current} at {inGameTimeLabel}");
             }
         }
 
