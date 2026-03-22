@@ -321,9 +321,44 @@ namespace Traffic_Law_Enforcement
             writer.TypeBegin("Game.UI.InGame.BudgetSource");
             writer.PropertyName("id");
             writer.Write(sourceId);
+            writer.PropertyName("label");
+            writer.Write(GetFineIncomeSourceLabel(sourceIndex));
             writer.PropertyName("index");
             writer.Write(sourceIndex);
             writer.TypeEnd();
+        }
+
+        private static string GetFineIncomeSourceLabel(int sourceIndex)
+        {
+            string localeId;
+            string fallback;
+
+            switch (sourceIndex)
+            {
+                case FineIncomePublicTransportLaneSourceIndex:
+                    localeId = FineIncomePublicTransportLaneLocaleId;
+                    fallback = "Public-transport lane violations";
+                    break;
+                case FineIncomeMidBlockCrossingSourceIndex:
+                    localeId = FineIncomeMidBlockCrossingLocaleId;
+                    fallback = "Mid-block violations";
+                    break;
+                case FineIncomeIntersectionMovementSourceIndex:
+                    localeId = FineIncomeIntersectionMovementLocaleId;
+                    fallback = "Intersection violations";
+                    break;
+                default:
+                    return FineIncomeItemId;
+            }
+
+            if (GameManager.instance?.localizationManager?.activeDictionary != null &&
+                GameManager.instance.localizationManager.activeDictionary.TryGetValue(localeId, out string label) &&
+                !string.IsNullOrWhiteSpace(label))
+            {
+                return label;
+            }
+
+            return fallback;
         }
 
         [HarmonyPatch(typeof(BudgetUISystem), "BindIncomeValues")]
