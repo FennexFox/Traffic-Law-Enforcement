@@ -130,8 +130,6 @@ namespace Traffic_Law_Enforcement
             AddMoneyPenalty(ref updatedData.m_UTurnCost, midBlockPenalty);
             AddMoneyPenalty(ref updatedData.m_UnsafeUTurnCost, midBlockPenalty);
             AddMoneyPenalty(ref updatedData.m_LaneCrossCost, midBlockPenalty);
-            AddMoneyPenalty(ref updatedData.m_UnsafeTurningCost, intersectionPenalty);
-            AddMoneyPenalty(ref updatedData.m_ForbiddenCost, intersectionPenalty);
 
             if (!PathfindCarDataEquals(currentData, updatedData))
             {
