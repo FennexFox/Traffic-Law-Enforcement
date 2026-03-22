@@ -556,7 +556,7 @@ namespace Traffic_Law_Enforcement
             List<string> parts = new List<string>(3);
             if (profile.PublicTransportLaneSegments > 0)
             {
-                parts.Add($"bus-lane {profile.PublicTransportLaneSegments} x {EnforcementPenaltyService.GetPublicTransportLaneFine()}");
+                parts.Add($"PT-lane {profile.PublicTransportLaneSegments} x {EnforcementPenaltyService.GetPublicTransportLaneFine()}");
             }
 
             if (profile.MidBlockTransitions > 0)

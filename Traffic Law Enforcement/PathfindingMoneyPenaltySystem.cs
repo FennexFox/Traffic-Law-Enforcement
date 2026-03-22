@@ -30,7 +30,7 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
-            OverrideSummary = $"UTurn +{midBlockPenalty:0}, UnsafeUTurn +{midBlockPenalty:0}, LaneCross +{midBlockPenalty:0}, UnsafeTurning +{intersectionPenalty:0}, Forbidden intersection +{intersectionPenalty:0}; bus-lane money-axis penalty is handled per route rather than through shared PathfindCarData prefabs";
+            OverrideSummary = $"UTurn +{midBlockPenalty:0}, UnsafeUTurn +{midBlockPenalty:0}, LaneCross +{midBlockPenalty:0}, UnsafeTurning +{intersectionPenalty:0}, Forbidden intersection +{intersectionPenalty:0}; PT-lane money-axis penalty is handled per route rather than through shared PathfindCarData prefabs";
         }
     }
 
