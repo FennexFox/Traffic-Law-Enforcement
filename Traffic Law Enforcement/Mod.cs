@@ -36,6 +36,7 @@ namespace Traffic_Law_Enforcement
             BudgetUIPatches.Apply();
             VehicleUtilsPatches.Apply();
             IntersectionMovementPathfindPatches.Apply();
+            IntersectionMovementPathfindReflectionPatches.Apply();
             updateSystem.UpdateAfter<EnforcementSaveDataSystem, EnforcementGameTimeSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateBefore<PathfindingMoneyPenaltySystem, CarNavigationSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateBefore<PublicTransportLanePermissionSystem, CarNavigationSystem>(SystemUpdatePhase.GameSimulation);
@@ -63,6 +64,7 @@ namespace Traffic_Law_Enforcement
             BudgetUIPatches.Remove();
             VehicleUtilsPatches.Remove();
             IntersectionMovementPathfindPatches.Remove();
+            IntersectionMovementPathfindReflectionPatches.Remove();
             if (m_Setting != null)
             {
                 m_Setting.UnregisterInOptionsUI();

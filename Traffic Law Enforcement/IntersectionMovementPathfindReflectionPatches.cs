@@ -15,6 +15,8 @@ namespace Traffic_Law_Enforcement
         private const int MaxDiagnosticLogs = 32;
         private static readonly Type s_PathfindExecutorType = AccessTools.Inner(typeof(PathfindJobs), "PathfindExecutor");
         private static int s_DiagnosticLogCount;
+        private const string HarmonyId = "Traffic_Law_Enforcement.IntersectionMovementPathfindReflectionPatches";
+        private static Harmony s_Harmony;
 
         private readonly struct NamedEntity
         {
@@ -48,6 +50,37 @@ namespace Traffic_Law_Enforcement
                     yield return method;
                 }
             }
+        }
+
+        public static void Apply()
+        {
+            if (s_Harmony != null)
+            {
+                return;
+            }
+
+            try
+            {
+                s_Harmony = new Harmony(HarmonyId);
+                s_Harmony.PatchAll(typeof(IntersectionMovementPathfindReflectionPatches).Assembly);
+                Mod.log.Info("Intersection movement reflection fallback patches applied.");
+            }
+            catch (Exception ex)
+            {
+                s_Harmony = null;
+                Mod.log.Error(ex, "Failed to apply intersection movement reflection fallback patches.");
+            }
+        }
+
+        public static void Remove()
+        {
+            if (s_Harmony == null)
+            {
+                return;
+            }
+
+            s_Harmony.UnpatchAll(HarmonyId);
+            s_Harmony = null;
         }
 
         private static void Postfix(object[] __args, ref float __result, PathfindParameters ___m_Parameters, MethodBase __originalMethod)
