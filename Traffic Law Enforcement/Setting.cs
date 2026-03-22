@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using System.Collections.Generic;
 using Colossal;
 using Colossal.IO.AssetDatabase;
@@ -13,8 +15,8 @@ namespace Traffic_Law_Enforcement
 {
     [FileLocation(nameof(Traffic_Law_Enforcement))]
     [SettingsUITabOrder(kCurrentSaveTab, kNewSaveDefaultsTab, kPolicyImpactTab, kDebugTab)]
-    [SettingsUIGroupOrder(kGeneralGroup, kBusLaneAuthorizedGroup, kBusLaneAdditionalGroup, kBusLanePressureGroup, kFineGroup, kRepeatOffenderGroup, kTemplateActionsGroup, kPolicyImpactGroup, kDebugGroup)]
-    [SettingsUIShowGroupName(kGeneralGroup, kBusLaneAuthorizedGroup, kBusLaneAdditionalGroup, kBusLanePressureGroup, kFineGroup, kRepeatOffenderGroup, kTemplateActionsGroup, kPolicyImpactGroup, kDebugGroup)]
+    [SettingsUIGroupOrder(kGeneralGroup, kBusLaneAuthorizedGroup, kBusLaneAdditionalGroup, kBusLanePressureGroup, kFineGroup, kRepeatOffenderGroup, kTemplateActionsGroup, kPolicyImpactGroup, kDebugGroup, kLogPathGroup)]
+    [SettingsUIShowGroupName(kGeneralGroup, kBusLaneAuthorizedGroup, kBusLaneAdditionalGroup, kBusLanePressureGroup, kFineGroup, kRepeatOffenderGroup, kTemplateActionsGroup, kPolicyImpactGroup, kDebugGroup, kLogPathGroup)]
     public class Setting : ModSetting
     {
         // --- Debug logging toggles for save/load ---
@@ -32,6 +34,7 @@ namespace Traffic_Law_Enforcement
         public const string kTemplateActionsGroup = "TemplateActions";
         public const string kPolicyImpactGroup = "PolicyImpactGroup";
         public const string kDebugGroup = "DebugGroup";
+        public const string kLogPathGroup = "LogPathGroup";
 
         public Setting(IMod mod) : base(mod)
         {
@@ -591,6 +594,10 @@ namespace Traffic_Law_Enforcement
         public bool EnablePathObsoleteSourceLogging { get; set; }
 
         [Exclude]
+        [SettingsUISection(kDebugTab, kLogPathGroup)]
+        public string ModLogPath => GetModLogPath();
+
+        [Exclude]
         [SettingsUIButton]
         [SettingsUIDisableByCondition(typeof(Setting), nameof(IsMonthlyChirperPreviewButtonDisabled))]
         [SettingsUISection(kDebugTab, kDebugGroup)]
@@ -724,6 +731,31 @@ namespace Traffic_Law_Enforcement
             return GameManager.instance != null && GameManager.instance.gameMode.IsGameOrEditor();
         }
 
+        private static string GetModLogPath()
+        {
+            try
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string appData = Directory.GetParent(localAppData)?.FullName;
+
+                if (!string.IsNullOrWhiteSpace(appData))
+                {
+                    return Path.Combine(
+                        appData,
+                        "LocalLow",
+                        "Colossal Order",
+                        "Cities Skylines II",
+                        "Logs",
+                        "Traffic_Law_Enforcement.Mod.log");
+                }
+            }
+            catch
+            {
+            }
+
+            return @"C:\Users\(USERNAME)\AppData\LocalLow\Colossal Order\Cities Skylines II\Logs\Traffic_Law_Enforcement.Mod.log";
+        }
+
         private delegate void CurrentSaveSettingsMutator(ref EnforcementGameplaySettingsState state);
     }
 
@@ -766,6 +798,7 @@ namespace Traffic_Law_Enforcement
                 { m_Setting.GetOptionGroupLocaleID(Setting.kTemplateActionsGroup), "Template actions" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.kPolicyImpactGroup), "Policy impact metrics" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.kDebugGroup), "Debug" },
+                { m_Setting.GetOptionGroupLocaleID(Setting.kLogPathGroup), "Log path" },
             };
 
             AddGameplay(entries, nameof(Setting.EnablePublicTransportLaneEnforcement), nameof(Setting.DefaultEnablePublicTransportLaneEnforcement), "Enable PT-lane enforcement", "Turn public-transport-only-lane violation detection, fines, and pathfinding penalties on or off.");
@@ -805,6 +838,7 @@ namespace Traffic_Law_Enforcement
             Add(entries, nameof(Setting.EnableType4PublicTransportLaneUsageLogging), "Enable PT-lane usage logging for non-public vehicles denied to use PT lanes", "Debug-only. Writes logs when Type 4 vehicles (vehicles that cannot use PT lanes in vanilla and are denied to use them by this mod's settings) are observed using PT-only lanes. Turning this off affects logging only; permissions and enforcement behavior still run.");
             Add(entries, nameof(Setting.EnablePathfindingPenaltyDiagnosticLogging), "Enable pathfinding penalty diagnostic logging", "Debug-only. Writes pathfinding money-axis penalty apply logs and shared PathfindCarData diagnostic logs. Turning this off affects logging only; pathfinding penalties still run.");
             Add(entries, nameof(Setting.EnablePathObsoleteSourceLogging), "Enable path obsolete source logging", "Debug-only. Writes logs only when a system actually marks a vehicle PathOwner obsolete, including the source system and key reason data. Turning this off affects logging only; rerouting behavior still runs.");
+            Add(entries, nameof(Setting.ModLogPath), "Mod log file path", "Shows the full path to this mod's log file.");
             Add(entries, nameof(Setting.PolicyImpactTotalStatistics), "Total violations", "Shows the rolling recent-1-in-game-month total violation rate, suppression failure rate, and fines.");
             Add(entries, nameof(Setting.PolicyImpactPublicTransportLaneStatistics), "PT-lane violations", "Shows the rolling recent-1-in-game-month PT-lane violation rate, suppression failure rate, and fines.");
             Add(entries, nameof(Setting.PolicyImpactMidBlockStatistics), "Mid-block violations", "Shows the rolling recent-1-in-game-month mid-block violation rate, suppression failure rate, and fines.");
@@ -905,6 +939,7 @@ namespace Traffic_Law_Enforcement
                 { m_Setting.GetOptionGroupLocaleID(Setting.kTemplateActionsGroup), "기본값 변경" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.kPolicyImpactGroup), "위반율 지표" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.kDebugGroup), "디버그" },
+                { m_Setting.GetOptionGroupLocaleID(Setting.kLogPathGroup), "로그 경로" },
             };
 
             AddGameplay(entries, nameof(Setting.EnablePublicTransportLaneEnforcement), nameof(Setting.DefaultEnablePublicTransportLaneEnforcement), "대중교통 전용차선 단속 활성화", "대중교통 전용차선 위반 감지, 벌금 부과, 대중교통 전용차선 경로탐색 페널티를 켜거나 끕니다.");
@@ -944,6 +979,7 @@ namespace Traffic_Law_Enforcement
             Add(entries, nameof(Setting.EnableType4PublicTransportLaneUsageLogging), "대중교통 전용차선 이용이 불허된 비대중교통 차량의 대중교통 전용차선 사용 로그 기록", "디버그 전용입니다. Type 4 차량 (바닐라 기준으로도 대중교통 전용차선을 이용할 수 없으며 이 모드의 설정에서도 대중교통 전용차선 이용이 불허된 차량) 이 실제로 그 차선을 이용한 사실을 로그로 기록합니다. 이 옵션을 꺼도 통행 허용 여부와 단속 동작은 계속 유지됩니다.");
             Add(entries, nameof(Setting.EnablePathfindingPenaltyDiagnosticLogging), "경로탐색 페널티 진단 로그 기록", "디버그 전용입니다. 경로탐색 money-axis 페널티 적용 로그와 shared PathfindCarData 진단 로그를 기록합니다. 이 옵션을 꺼도 경로탐색 페널티 자체는 계속 적용됩니다.");
             Add(entries, nameof(Setting.EnablePathObsoleteSourceLogging), "경로 obsolete 원인 로그 기록", "디버그 전용입니다. 어떤 시스템이 실제로 차량의 PathOwner를 obsolete 상태로 만들었는지와 주요 판단 근거를 로그로 기록합니다. 이 옵션을 꺼도 재경로 동작 자체는 계속 진행됩니다.");
+            Add(entries, nameof(Setting.ModLogPath), "모드 로그 파일 경로", "이 모드의 로그 파일이 저장되는 전체 경로를 표시합니다.");
             Add(entries, nameof(Setting.PolicyImpactTotalStatistics), "전체 교통법규 위반", "게임 시간 최근 1달 기준 전체 위반율, 억제 실패율, 벌금액을 표시합니다.");
             Add(entries, nameof(Setting.PolicyImpactPublicTransportLaneStatistics), "대중교통 전용차선 무단 이용", "게임 시간 최근 1달 기준 대중교통 전용차선 통행규칙 위반율, 억제 실패율, 벌금액을 표시합니다.");
             Add(entries, nameof(Setting.PolicyImpactMidBlockStatistics), "중앙선 침범", "게임 시간 최근 1달 기준 중앙선 통행규칙 위반율, 억제 실패율, 벌금액을 표시합니다.");
