@@ -41,7 +41,6 @@ namespace Traffic_Law_Enforcement
         private ComponentLookup<OriginalPathfindCarData> m_OriginalPathfindCarDataLookup;
         private PrefabSystem m_PrefabSystem;
         private int m_LastMidBlockPenalty = int.MinValue;
-        private int m_LastIntersectionPenalty = int.MinValue;
         private int m_LastPrefabCount = -1;
         private bool m_LastEnforcementEnabled;
         private bool m_HasApplied;
@@ -80,8 +79,7 @@ namespace Traffic_Law_Enforcement
                 prefabCount != m_LastPrefabCount ||
                 !m_UncachedPathfindCarDataQuery.IsEmptyIgnoreFilter ||
                 enforcementEnabled != m_LastEnforcementEnabled ||
-                midBlockPenalty != m_LastMidBlockPenalty ||
-                intersectionPenalty != m_LastIntersectionPenalty;
+                midBlockPenalty != m_LastMidBlockPenalty;
 
             if (!needsApply)
             {
@@ -91,7 +89,6 @@ namespace Traffic_Law_Enforcement
             ApplyOverrides(midBlockPenalty, intersectionPenalty);
 
             m_LastMidBlockPenalty = midBlockPenalty;
-            m_LastIntersectionPenalty = intersectionPenalty;
             m_LastPrefabCount = prefabCount;
             m_LastEnforcementEnabled = enforcementEnabled;
             m_HasApplied = true;
