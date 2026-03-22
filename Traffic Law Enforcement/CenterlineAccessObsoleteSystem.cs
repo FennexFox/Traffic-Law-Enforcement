@@ -385,7 +385,7 @@ namespace Traffic_Law_Enforcement
 
         private void ResetRepeatInvalidationIfPathChanged(Entity vehicle, PathOwner pathOwner, Entity currentLane)
         {
-            PathFlags resetFlags = pathOwner.m_State & (PathFlags.Pending | PathFlags.Updated);
+            PathFlags resetFlags = pathOwner.m_State & PathFlags.Updated;
             if (resetFlags == 0)
             {
                 return;
