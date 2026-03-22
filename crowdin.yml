@@ -9,10 +9,14 @@ files:
     type: properties
     languages_mapping:
       locale:
-        ko: ko-KR
-        ja: ja-JP
         es-ES: es-ES
-        fr: fr-FR
         de: de-DE
+        fr: fr-FR
+        it: it-IT
+        ja: ja-JP
+        ko: ko-KR
+        pl: pl-PL
         ru: ru-RU
+        pt-BR: pt-BR
         zh-CN: zh-CN
+        zh-TW: zh-TW
