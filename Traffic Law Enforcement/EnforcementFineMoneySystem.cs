@@ -182,7 +182,7 @@ namespace Traffic_Law_Enforcement
             }
         }
 
-        public static IReadOnlyCollection<FineIncomeEvent> GetFineIncomefaEventSnapshot()
+        public static IReadOnlyCollection<FineIncomeEvent> GetFineIncomeEventSnapshot()
         {
             return s_RecentFineIncomeEvents.ToArray();
         }
