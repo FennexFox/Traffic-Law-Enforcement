@@ -5,6 +5,7 @@ using Game.Vehicles;
 using Unity.Collections;
 using Unity.Entities;
 using Entity = Unity.Entities.Entity;
+using System.Collections.Generic;
 
 namespace Traffic_Law_Enforcement
 {
@@ -23,6 +24,7 @@ namespace Traffic_Law_Enforcement
         private ComponentLookup<VehicleTrafficLawProfile> m_ProfileData;
         private PublicTransportLaneVehicleTypeLookups m_TypeLookups;
         private NativeList<Entity> m_PendingRefreshVehicles;
+        private HashSet<Entity> m_ProcessedThisFrame;
         private int m_RefreshCursor;
         private bool m_HasEvaluated;
         private bool m_LastEnforcementEnabled;
@@ -60,6 +62,7 @@ namespace Traffic_Law_Enforcement
             m_ProfileData = GetComponentLookup<VehicleTrafficLawProfile>(true);
             m_TypeLookups = PublicTransportLaneVehicleTypeLookups.Create(this);
             m_PendingRefreshVehicles = new NativeList<Entity>(Allocator.Persistent);
+            m_ProcessedThisFrame = new HashSet<Entity>();
             RequireForUpdate(m_AllCarsQuery);
         }
 
@@ -122,37 +125,14 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
-            EvaluateQuery(m_ChangedCarQuery);
-            EvaluatePendingExitVehicles();
-            RestoreVehiclesMissingProfile();
+            BeginSteadyStateEvaluation();
+            EvaluateQueryDeduplicated(m_ChangedCarQuery);
+            EvaluatePendingExitVehiclesDeduplicated();
+            RestoreVehiclesMissingProfileDeduplicated();
 
             m_HasEvaluated = true;
             m_LastEnforcementEnabled = true;
             m_LastSettingsMask = settingsMask;
-        }
-
-        private void EvaluatePendingExitVehicles()
-        {
-            if (m_PendingExitQuery.IsEmptyIgnoreFilter)
-            {
-                return;
-            }
-
-            NativeArray<Entity> vehicles = m_PendingExitQuery.ToEntityArray(Allocator.Temp);
-            NativeArray<Car> cars = m_PendingExitQuery.ToComponentDataArray<Car>(Allocator.Temp);
-
-            try
-            {
-                for (int index = 0; index < vehicles.Length; index += 1)
-                {
-                    EvaluateVehicle(vehicles[index], cars[index]);
-                }
-            }
-            finally
-            {
-                vehicles.Dispose();
-                cars.Dispose();
-            }
         }
 
         private bool IsPublicOnlyLane(Entity laneEntity)
@@ -243,7 +223,72 @@ namespace Traffic_Law_Enforcement
             }
         }
 
-        private void RestoreVehiclesMissingProfile()
+        private void BeginSteadyStateEvaluation()
+        {
+            m_ProcessedThisFrame.Clear();
+        }
+
+        private void EvaluateQueryDeduplicated(EntityQuery query)
+        {
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            NativeArray<Entity> vehicles = query.ToEntityArray(Allocator.Temp);
+            NativeArray<Car> cars = query.ToComponentDataArray<Car>(Allocator.Temp);
+
+            try
+            {
+                for (int index = 0; index < vehicles.Length; index += 1)
+                {
+                    Entity vehicle = vehicles[index];
+                    if (!m_ProcessedThisFrame.Add(vehicle))
+                    {
+                        continue;
+                    }
+
+                    EvaluateVehicle(vehicle, cars[index]);
+                }
+            }
+            finally
+            {
+                vehicles.Dispose();
+                cars.Dispose();
+            }
+        }
+
+        private void EvaluatePendingExitVehiclesDeduplicated()
+        {
+            if (m_PendingExitQuery.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            NativeArray<Entity> vehicles = m_PendingExitQuery.ToEntityArray(Allocator.Temp);
+            NativeArray<Car> cars = m_PendingExitQuery.ToComponentDataArray<Car>(Allocator.Temp);
+
+            try
+            {
+                for (int index = 0; index < vehicles.Length; index += 1)
+                {
+                    Entity vehicle = vehicles[index];
+                    if (!m_ProcessedThisFrame.Add(vehicle))
+                    {
+                        continue;
+                    }
+
+                    EvaluateVehicle(vehicle, cars[index]);
+                }
+            }
+            finally
+            {
+                vehicles.Dispose();
+                cars.Dispose();
+            }
+        }
+
+        private void RestoreVehiclesMissingProfileDeduplicated()
         {
             if (m_TrackedWithoutProfileQuery.IsEmptyIgnoreFilter)
             {
@@ -259,7 +304,13 @@ namespace Traffic_Law_Enforcement
             {
                 for (int index = 0; index < vehicles.Length; index += 1)
                 {
-                    RestoreVehicle(vehicles[index], cars[index], states[index], removeState: true);
+                    Entity vehicle = vehicles[index];
+                    if (!m_ProcessedThisFrame.Add(vehicle))
+                    {
+                        continue;
+                    }
+
+                    RestoreVehicle(vehicle, cars[index], states[index], removeState: true);
                 }
             }
             finally
