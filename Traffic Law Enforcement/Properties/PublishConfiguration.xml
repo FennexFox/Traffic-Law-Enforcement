@@ -110,7 +110,7 @@ The following options can be configured either for the currently loaded save fil
 	<RequiredDLC Value="" />
 	<!--Change log for new version. Single line or multi line. Supports minimal markdown subset-->
 	<ChangeLog>
-Revised localization structures to facilitate Crowdin integration. Added Italian, Polish, Portuguese (Brazil), and Russian to the list of supported languages.
+Revised localization structures to facilitate Crowdin integration.
 	</ChangeLog>
 	<!--External link, can be set multiple times. supported types are "discord", "github", "youtube", "twitch", "x", "paypal", "patreon", "buymeacoffee", "kofi", "crowdin", "gitlab", "gofundme"-->
 	<ExternalLink Type="github" Url="https://github.com/lokasenna9312/Traffic-Law-Enforcement/" />
