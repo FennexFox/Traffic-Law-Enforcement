@@ -75,7 +75,7 @@ namespace Traffic_Law_Enforcement
 
         protected override void OnUpdate()
         {
-            m_CurrentLaneData.Update(this);
+            m_CarLaneData.Update(this);
             m_PathOwnerData.Update(this);
             m_CurrentLaneData.Update(this);
             m_ProfileData.Update(this);
