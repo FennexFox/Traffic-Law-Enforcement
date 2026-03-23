@@ -11,7 +11,9 @@ namespace Traffic_Law_Enforcement
         private EntityQuery m_AllCarsQuery;
         private EntityQuery m_ChangedCarQuery;
         private PublicTransportLaneVehicleTypeLookups m_TypeLookups;
-
+        private const int kVehiclesPerFrame = 512;
+        private NativeList<Entity> m_PendingRefreshVehicles;
+        private int m_RefreshCursor;
         private bool m_HasEvaluated;
         private int m_LastPermissionSettingsMask;
 
@@ -28,6 +30,8 @@ namespace Traffic_Law_Enforcement
 
             m_TypeLookups = PublicTransportLaneVehicleTypeLookups.Create(this);
 
+            m_PendingRefreshVehicles = new NativeList<Entity>(Allocator.Persistent);
+
             RequireForUpdate(m_AllCarsQuery);
         }
 
@@ -38,17 +42,101 @@ namespace Traffic_Law_Enforcement
             EnforcementGameplaySettingsState settings = EnforcementGameplaySettingsService.Current;
             int permissionSettingsMask = PublicTransportLanePolicy.GetPermissionSettingsMask(settings);
 
-            bool fullRefresh =
-                !m_HasEvaluated ||
-                permissionSettingsMask != m_LastPermissionSettingsMask;
+        bool fullRefresh =
+            !m_HasEvaluated ||
+            permissionSettingsMask != m_LastPermissionSettingsMask;
 
-            EvaluateQuery(
-                fullRefresh ? m_AllCarsQuery : m_ChangedCarQuery,
-                settings,
-                permissionSettingsMask);
+        if (fullRefresh && m_PendingRefreshVehicles.Length == 0)
+        {
+            BuildPendingRefreshList();
+        }
 
-            m_HasEvaluated = true;
-            m_LastPermissionSettingsMask = permissionSettingsMask;
+        if (m_PendingRefreshVehicles.Length > 0)
+        {
+            ProcessRefreshBatch(settings, permissionSettingsMask);
+
+            if (m_PendingRefreshVehicles.Length == 0)
+            {
+                m_HasEvaluated = true;
+                m_LastPermissionSettingsMask = permissionSettingsMask;
+            }
+
+            return;
+        }
+
+        EvaluateQuery(
+            m_ChangedCarQuery,
+            settings,
+            permissionSettingsMask);
+
+        m_HasEvaluated = true;
+        m_LastPermissionSettingsMask = permissionSettingsMask;
+        }
+
+        protected override void OnDestroy()
+        {
+            if (m_PendingRefreshVehicles.IsCreated)
+            {
+                m_PendingRefreshVehicles.Dispose();
+            }
+
+            base.OnDestroy();
+        }
+
+        private void BuildPendingRefreshList()
+        {
+            ClearPendingRefresh();
+
+            NativeArray<Entity> vehicles = m_AllCarsQuery.ToEntityArray(Allocator.Temp);
+            try
+            {
+                for (int index = 0; index < vehicles.Length; index += 1)
+                {
+                    m_PendingRefreshVehicles.Add(vehicles[index]);
+                }
+            }
+            finally
+            {
+                vehicles.Dispose();
+            }
+        }
+
+        private void ClearPendingRefresh()
+        {
+            if (m_PendingRefreshVehicles.IsCreated)
+            {
+                m_PendingRefreshVehicles.Clear();
+            }
+
+            m_RefreshCursor = 0;
+        }
+
+        private void ProcessRefreshBatch(
+            EnforcementGameplaySettingsState settings,
+            int permissionSettingsMask)
+        {
+            int end = System.Math.Min(
+                m_RefreshCursor + kVehiclesPerFrame,
+                m_PendingRefreshVehicles.Length);
+
+            for (int index = m_RefreshCursor; index < end; index += 1)
+            {
+                Entity vehicle = m_PendingRefreshVehicles[index];
+                if (!EntityManager.Exists(vehicle) || !EntityManager.HasComponent<Car>(vehicle))
+                {
+                    continue;
+                }
+
+                Car car = EntityManager.GetComponentData<Car>(vehicle);
+                EvaluateVehicle(vehicle, car, settings, permissionSettingsMask);
+            }
+
+            m_RefreshCursor = end;
+
+            if (m_RefreshCursor >= m_PendingRefreshVehicles.Length)
+            {
+                ClearPendingRefresh();
+            }
         }
 
         private void EvaluateQuery(
