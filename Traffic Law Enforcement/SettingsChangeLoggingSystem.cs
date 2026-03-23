@@ -23,18 +23,19 @@ namespace Traffic_Law_Enforcement
         protected override void OnUpdate()
         {
             LoggedSettingsSnapshot snapshot = LoggedSettingsSnapshot.Capture();
+            string inGameTimeLabel = GetInGameTimeLabel();
+
             if (!m_HasSnapshot)
             {
+                Mod.log.Info($"[Settings] Initial snapshot at {inGameTimeLabel}: {snapshot.ToLogString()}");
                 m_LastSnapshot = snapshot;
                 m_HasSnapshot = true;
                 return;
             }
 
-            string inGameTimeLabel = GetInGameTimeLabel();
             LogChanges(inGameTimeLabel, m_LastSnapshot, snapshot);
             m_LastSnapshot = snapshot;
         }
-
         private void LogChanges(string inGameTimeLabel, LoggedSettingsSnapshot previous, LoggedSettingsSnapshot current)
         {
             LogChange(inGameTimeLabel, nameof(Setting.EnablePublicTransportLaneEnforcement), previous.Gameplay.EnablePublicTransportLaneEnforcement, current.Gameplay.EnablePublicTransportLaneEnforcement);
