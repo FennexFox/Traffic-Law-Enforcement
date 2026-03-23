@@ -174,18 +174,34 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
-            if (Mod.IsIntersectionMovementEnforcementEnabled &&
-                (currentLane.m_LaneFlags & Game.Vehicles.CarLaneFlags.Connection) != 0 &&
-                m_IntersectionTransitionDiagnosticCount < MaxIntersectionTransitionDiagnostics)
+            if (TryDetectMidBlockCrossing(history, out LaneTransitionViolationReasonCode reasonCode))
             {
-                bool illegal = IntersectionMovementPolicy.TryGetIllegalIntersectionMovement(
-                    m_ConnectionLaneData,
-                    m_CarLaneData,
-                    history.m_PreviousLane,
-                    history.m_CurrentLane,
-                    out LaneMovement diagActual,
-                    out LaneMovement diagAllowed);
+                events.Add(new DetectedLaneTransitionViolation
+                {
+                    Vehicle = vehicle,
+                    Lane = history.m_CurrentLane,
+                    Kind = LaneTransitionViolationKind.MidBlockCrossing,
+                    ReasonCode = reasonCode,
+                    ActualMovement = LaneMovement.None,
+                    AllowedMovement = LaneMovement.None,
+                });
+            }
 
+            bool logIntersectionCandidate =
+                EnforcementLoggingPolicy.ShouldLogEnforcementEvents() &&
+                Mod.IsIntersectionMovementEnforcementEnabled &&
+                (currentLane.m_LaneFlags & Game.Vehicles.CarLaneFlags.Connection) != 0 &&
+                m_IntersectionTransitionDiagnosticCount < MaxIntersectionTransitionDiagnostics;
+
+            bool hasIntersectionViolation =
+                TryDetectIntersectionMovementViolation(
+                    history,
+                    currentLane,
+                    out LaneMovement actualMovement,
+                    out LaneMovement allowedMovement);
+
+            if (logIntersectionCandidate)
+            {
                 m_IntersectionTransitionDiagnosticCount += 1;
 
                 string previousFlagsText = m_CarLaneData.TryGetComponent(history.m_PreviousLane, out CarLane previousCarLane)
@@ -203,24 +219,11 @@ namespace Traffic_Law_Enforcement
                 Mod.log.Info(
                     $"Intersection transition candidate: vehicle={vehicle}, " +
                     $"fromLane={history.m_PreviousLane}, toLane={history.m_CurrentLane}, " +
-                    $"illegal={illegal}, actual={diagActual}, allowed={diagAllowed}, " +
+                    $"illegal={hasIntersectionViolation}, actual={actualMovement}, allowed={allowedMovement}, " +
                     $"previousFlags={previousFlagsText}, currentFlags={currentFlagsText}, connectionFlags={connectionFlagsText}");
             }
 
-            if (TryDetectMidBlockCrossing(history, out LaneTransitionViolationReasonCode reasonCode))
-            {
-                events.Add(new DetectedLaneTransitionViolation
-                {
-                    Vehicle = vehicle,
-                    Lane = history.m_CurrentLane,
-                    Kind = LaneTransitionViolationKind.MidBlockCrossing,
-                    ReasonCode = reasonCode,
-                    ActualMovement = LaneMovement.None,
-                    AllowedMovement = LaneMovement.None,
-                });
-            }
-
-            if (TryDetectIntersectionMovementViolation(history, currentLane, out LaneMovement actualMovement, out LaneMovement allowedMovement))
+            if (hasIntersectionViolation)
             {
                 events.Add(new DetectedLaneTransitionViolation
                 {
