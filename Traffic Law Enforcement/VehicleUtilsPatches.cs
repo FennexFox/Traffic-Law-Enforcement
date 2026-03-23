@@ -36,6 +36,9 @@ namespace Traffic_Law_Enforcement
 
         private static Harmony s_Harmony;
         private static int s_CachedPublicTransportLaneFine;
+        private static bool s_HasCachedPenaltyValues;
+        private static bool s_CachedPublicTransportLaneEnforcementEnabled;
+        private static int s_CachedConfiguredPublicTransportLaneFine;
 
         public static void Apply()
         {
@@ -73,12 +76,14 @@ namespace Traffic_Law_Enforcement
             s_Harmony.UnpatchAll(HarmonyId);
             s_Harmony = null;
             s_CachedPublicTransportLaneFine = 0;
+            s_HasCachedPenaltyValues = false;
+            s_CachedPublicTransportLaneEnforcementEnabled = false;
+            s_CachedConfiguredPublicTransportLaneFine = 0;
         }
 
         private static void SetupPathfindPrefix(ref SetupQueueItem item)
         {
             EnforcementPolicyImpactService.RecordPathRequest();
-            RefreshCachedPenaltyValues();
 
             World world = World.DefaultGameObjectInjectionWorld;
             if (world == null)
@@ -92,6 +97,8 @@ namespace Traffic_Law_Enforcement
             {
                 return;
             }
+
+            RefreshCachedPenaltyValues();
 
             SyncPrivateTrafficIgnoredRules(entityManager, owner, ref item);
 
@@ -129,16 +136,25 @@ namespace Traffic_Law_Enforcement
             __result += publicTransportPenalty * moneyWeight * math.abs(delta.y - delta.x);
         }
 
-        private static void RefreshCachedPenaltyValues()
-        {
-            if (!Mod.IsPublicTransportLaneEnforcementEnabled)
+            private static void RefreshCachedPenaltyValues()
             {
-                s_CachedPublicTransportLaneFine = 0;
-                return;
-            }
+                bool enforcementEnabled = Mod.IsPublicTransportLaneEnforcementEnabled;
+                int configuredFineAmount = enforcementEnabled
+                    ? EnforcementGameplaySettingsService.Current.PublicTransportLaneFineAmount
+                    : 0;
 
-            s_CachedPublicTransportLaneFine = EnforcementPenaltyService.GetPublicTransportLaneFine();
-        }
+                if (s_HasCachedPenaltyValues &&
+                    s_CachedPublicTransportLaneEnforcementEnabled == enforcementEnabled &&
+                    s_CachedConfiguredPublicTransportLaneFine == configuredFineAmount)
+                {
+                    return;
+                }
+
+                s_HasCachedPenaltyValues = true;
+                s_CachedPublicTransportLaneEnforcementEnabled = enforcementEnabled;
+                s_CachedConfiguredPublicTransportLaneFine = configuredFineAmount;
+                s_CachedPublicTransportLaneFine = configuredFineAmount;
+            }
 
         private static void SyncPrivateTrafficIgnoredRules(
             EntityManager entityManager,
