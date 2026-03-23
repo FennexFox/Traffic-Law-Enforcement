@@ -61,27 +61,12 @@ namespace Traffic_Law_Enforcement
 
         protected override void OnUpdate()
         {
-            m_CarData.Update(this);
-            m_CarLaneData.Update(this);
-            m_EdgeLaneData.Update(this);
-            m_ParkingLaneData.Update(this);
-            m_GarageLaneData.Update(this);
-            m_ConnectionLaneData.Update(this);
-            m_AnalysisStateData.Update(this);
-
             if (m_ChangedTransitionQuery.IsEmptyIgnoreFilter)
             {
                 return;
             }
 
-            if (m_EventEntity == Entity.Null || !EntityManager.Exists(m_EventEntity))
-            {
-                m_EventEntity = m_EventBufferQuery.GetSingletonEntity();
-            }
-
-            DynamicBuffer<DetectedLaneTransitionViolation> events =
-                EntityManager.GetBuffer<DetectedLaneTransitionViolation>(m_EventEntity);
-            events.Clear();
+            m_AnalysisStateData.Update(this);
 
             bool enforcementActive =
                 Mod.IsMidBlockCrossingEnforcementEnabled ||
@@ -102,6 +87,22 @@ namespace Traffic_Law_Enforcement
 
                     return;
                 }
+
+                m_CarData.Update(this);
+                m_CarLaneData.Update(this);
+                m_EdgeLaneData.Update(this);
+                m_ParkingLaneData.Update(this);
+                m_GarageLaneData.Update(this);
+                m_ConnectionLaneData.Update(this);
+
+                if (m_EventEntity == Entity.Null || !EntityManager.Exists(m_EventEntity))
+                {
+                    m_EventEntity = m_EventBufferQuery.GetSingletonEntity();
+                }
+
+                DynamicBuffer<DetectedLaneTransitionViolation> events =
+                    EntityManager.GetBuffer<DetectedLaneTransitionViolation>(m_EventEntity);
+                events.Clear();
 
                 NativeArray<CarCurrentLane> currentLanes =
                     m_ChangedTransitionQuery.ToComponentDataArray<CarCurrentLane>(Allocator.Temp);
