@@ -69,9 +69,10 @@ namespace Traffic_Law_Enforcement
             m_ConnectionLaneData.Update(this);
             m_AnalysisStateData.Update(this);
 
-            NativeArray<Entity> vehicles = m_ChangedTransitionQuery.ToEntityArray(Allocator.Temp);
-            NativeArray<CarCurrentLane> currentLanes = m_ChangedTransitionQuery.ToComponentDataArray<CarCurrentLane>(Allocator.Temp);
-            NativeArray<VehicleLaneHistory> histories = m_ChangedTransitionQuery.ToComponentDataArray<VehicleLaneHistory>(Allocator.Temp);
+            if (m_ChangedTransitionQuery.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
 
             if (m_EventEntity == Entity.Null || !EntityManager.Exists(m_EventEntity))
             {
@@ -82,12 +83,19 @@ namespace Traffic_Law_Enforcement
                 EntityManager.GetBuffer<DetectedLaneTransitionViolation>(m_EventEntity);
             events.Clear();
 
+            bool enforcementActive =
+                Mod.IsMidBlockCrossingEnforcementEnabled ||
+                Mod.IsIntersectionMovementEnforcementEnabled;
+
+            NativeArray<Entity> vehicles = m_ChangedTransitionQuery.ToEntityArray(Allocator.Temp);
+            NativeArray<VehicleLaneHistory> histories =
+                m_ChangedTransitionQuery.ToComponentDataArray<VehicleLaneHistory>(Allocator.Temp);
 
             try
             {
-                if (!Mod.IsMidBlockCrossingEnforcementEnabled && !Mod.IsIntersectionMovementEnforcementEnabled)
+                if (!enforcementActive)
                 {
-                    for (int index = 0; index < vehicles.Length; index++)
+                    for (int index = 0; index < vehicles.Length; index += 1)
                     {
                         SyncAnalysisState(vehicles[index], histories[index]);
                     }
@@ -95,15 +103,28 @@ namespace Traffic_Law_Enforcement
                     return;
                 }
 
-                for (int index = 0; index < vehicles.Length; index++)
+                NativeArray<CarCurrentLane> currentLanes =
+                    m_ChangedTransitionQuery.ToComponentDataArray<CarCurrentLane>(Allocator.Temp);
+
+                try
                 {
-                    ProcessTransition(vehicles[index], currentLanes[index], histories[index], events);
+                    for (int index = 0; index < vehicles.Length; index += 1)
+                    {
+                        ProcessTransition(
+                            vehicles[index],
+                            currentLanes[index],
+                            histories[index],
+                            events);
+                    }
+                }
+                finally
+                {
+                    currentLanes.Dispose();
                 }
             }
             finally
             {
                 vehicles.Dispose();
-                currentLanes.Dispose();
                 histories.Dispose();
             }
         }

@@ -42,35 +42,35 @@ namespace Traffic_Law_Enforcement
             EnforcementGameplaySettingsState settings = EnforcementGameplaySettingsService.Current;
             int permissionSettingsMask = PublicTransportLanePolicy.GetPermissionSettingsMask(settings);
 
-        bool fullRefresh =
-            !m_HasEvaluated ||
-            permissionSettingsMask != m_LastPermissionSettingsMask;
+            bool fullRefresh =
+                !m_HasEvaluated ||
+                permissionSettingsMask != m_LastPermissionSettingsMask;
 
-        if (fullRefresh && m_PendingRefreshVehicles.Length == 0)
-        {
-            BuildPendingRefreshList();
-        }
-
-        if (m_PendingRefreshVehicles.Length > 0)
-        {
-            ProcessRefreshBatch(settings, permissionSettingsMask);
-
-            if (m_PendingRefreshVehicles.Length == 0)
+            if (fullRefresh && m_PendingRefreshVehicles.Length == 0)
             {
-                m_HasEvaluated = true;
-                m_LastPermissionSettingsMask = permissionSettingsMask;
+                BuildPendingRefreshList();
             }
 
-            return;
-        }
+            if (m_PendingRefreshVehicles.Length > 0)
+            {
+                ProcessRefreshBatch(settings, permissionSettingsMask);
 
-        EvaluateQuery(
-            m_ChangedCarQuery,
-            settings,
-            permissionSettingsMask);
+                if (m_PendingRefreshVehicles.Length == 0)
+                {
+                    m_HasEvaluated = true;
+                    m_LastPermissionSettingsMask = permissionSettingsMask;
+                }
 
-        m_HasEvaluated = true;
-        m_LastPermissionSettingsMask = permissionSettingsMask;
+                return;
+            }
+
+            EvaluateQuery(
+                m_ChangedCarQuery,
+                settings,
+                permissionSettingsMask);
+
+            m_HasEvaluated = true;
+            m_LastPermissionSettingsMask = permissionSettingsMask;
         }
 
         protected override void OnDestroy()
