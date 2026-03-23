@@ -9,12 +9,21 @@ namespace Traffic_Law_Enforcement
 {
     public partial class PublicTransportLanePermissionSystem : GameSystemBase
     {
+        private const int kVehiclesPerFrame = 512;
+
         private EntityQuery m_AllCarsQuery;
         private EntityQuery m_ChangedCarQuery;
         private EntityQuery m_TrackedQuery;
+        private EntityQuery m_TrackedWithoutProfileQuery;
+
         private ComponentLookup<PathOwner> m_PathOwnerData;
         private ComponentLookup<CarCurrentLane> m_CurrentLaneData;
+        private ComponentLookup<VehicleTrafficLawProfile> m_ProfileData;
         private PublicTransportLaneVehicleTypeLookups m_TypeLookups;
+
+        private NativeList<Entity> m_PendingRefreshVehicles;
+        private int m_RefreshCursor;
+
         private bool m_HasEvaluated;
         private bool m_LastEnforcementEnabled;
         private int m_LastSettingsMask;
@@ -22,53 +31,165 @@ namespace Traffic_Law_Enforcement
         protected override void OnCreate()
         {
             base.OnCreate();
+
             m_AllCarsQuery = GetEntityQuery(ComponentType.ReadWrite<Car>());
+
             m_ChangedCarQuery = GetEntityQuery(ComponentType.ReadWrite<Car>());
             m_ChangedCarQuery.SetChangedVersionFilter(ComponentType.ReadOnly<Car>());
+
             m_TrackedQuery = GetEntityQuery(
                 ComponentType.ReadWrite<Car>(),
                 ComponentType.ReadWrite<PublicTransportLanePermissionState>());
+
+            m_TrackedWithoutProfileQuery = GetEntityQuery(new EntityQueryDesc
+            {
+                All = new[]
+                {
+                    ComponentType.ReadWrite<Car>(),
+                    ComponentType.ReadWrite<PublicTransportLanePermissionState>(),
+                },
+                None = new[]
+                {
+                    ComponentType.ReadOnly<VehicleTrafficLawProfile>(),
+                },
+            });
+
             m_PathOwnerData = GetComponentLookup<PathOwner>();
-            m_TypeLookups = PublicTransportLaneVehicleTypeLookups.Create(this);
             m_CurrentLaneData = GetComponentLookup<CarCurrentLane>(true);
+            m_ProfileData = GetComponentLookup<VehicleTrafficLawProfile>(true);
+            m_TypeLookups = PublicTransportLaneVehicleTypeLookups.Create(this);
+
+            m_PendingRefreshVehicles = new NativeList<Entity>(Allocator.Persistent);
+
             RequireForUpdate(m_AllCarsQuery);
+        }
+
+        protected override void OnDestroy()
+        {
+            if (m_PendingRefreshVehicles.IsCreated)
+            {
+                m_PendingRefreshVehicles.Dispose();
+            }
+
+            base.OnDestroy();
         }
 
         protected override void OnUpdate()
         {
             m_PathOwnerData.Update(this);
-            m_TypeLookups.Update(this);
             m_CurrentLaneData.Update(this);
-            EnforcementGameplaySettingsState settings = EnforcementGameplaySettingsService.Current;
+            m_ProfileData.Update(this);
+            m_TypeLookups.Update(this);
 
+            EnforcementGameplaySettingsState settings = EnforcementGameplaySettingsService.Current;
             bool enforcementEnabled = Mod.IsPublicTransportLaneEnforcementEnabled;
+
             if (!enforcementEnabled)
             {
                 RestoreTrackedVehicles();
+                ClearPendingRefresh();
                 m_HasEvaluated = false;
                 m_LastEnforcementEnabled = false;
                 return;
             }
 
             int settingsMask = PublicTransportLanePolicy.GetPermissionSettingsMask(settings);
-            bool fullRefresh = !m_HasEvaluated || !m_LastEnforcementEnabled || settingsMask != m_LastSettingsMask;
-            EvaluateQuery(fullRefresh ? m_AllCarsQuery : m_ChangedCarQuery, settings);
+            bool fullRefreshRequested =
+                !m_HasEvaluated ||
+                !m_LastEnforcementEnabled ||
+                settingsMask != m_LastSettingsMask;
+
+            if (fullRefreshRequested && m_PendingRefreshVehicles.Length == 0)
+            {
+                BuildPendingRefreshList();
+            }
+
+            if (m_PendingRefreshVehicles.Length > 0)
+            {
+                ProcessRefreshBatch();
+
+                if (m_PendingRefreshVehicles.Length == 0)
+                {
+                    m_HasEvaluated = true;
+                    m_LastEnforcementEnabled = true;
+                    m_LastSettingsMask = settingsMask;
+                }
+
+                return;
+            }
+
+            EvaluateQuery(m_ChangedCarQuery);
+            RestoreVehiclesMissingProfile();
 
             m_HasEvaluated = true;
             m_LastEnforcementEnabled = true;
             m_LastSettingsMask = settingsMask;
         }
 
-        private void EvaluateQuery(EntityQuery query, EnforcementGameplaySettingsState settings)
+        private void BuildPendingRefreshList()
+        {
+            ClearPendingRefresh();
+
+            NativeArray<Entity> vehicles = m_AllCarsQuery.ToEntityArray(Allocator.Temp);
+            try
+            {
+                for (int index = 0; index < vehicles.Length; index += 1)
+                {
+                    m_PendingRefreshVehicles.Add(vehicles[index]);
+                }
+            }
+            finally
+            {
+                vehicles.Dispose();
+            }
+        }
+
+        private void ClearPendingRefresh()
+        {
+            if (m_PendingRefreshVehicles.IsCreated)
+            {
+                m_PendingRefreshVehicles.Clear();
+            }
+
+            m_RefreshCursor = 0;
+        }
+
+        private void ProcessRefreshBatch()
+        {
+            int end = System.Math.Min(
+                m_RefreshCursor + kVehiclesPerFrame,
+                m_PendingRefreshVehicles.Length);
+
+            for (int index = m_RefreshCursor; index < end; index += 1)
+            {
+                Entity vehicle = m_PendingRefreshVehicles[index];
+                if (!EntityManager.Exists(vehicle) || !EntityManager.HasComponent<Car>(vehicle))
+                {
+                    continue;
+                }
+
+                Car car = EntityManager.GetComponentData<Car>(vehicle);
+                EvaluateVehicle(vehicle, car);
+            }
+
+            m_RefreshCursor = end;
+
+            if (m_RefreshCursor >= m_PendingRefreshVehicles.Length)
+            {
+                ClearPendingRefresh();
+            }
+        }
+
+        private void EvaluateQuery(EntityQuery query)
         {
             NativeArray<Entity> vehicles = query.ToEntityArray(Allocator.Temp);
             NativeArray<Car> cars = query.ToComponentDataArray<Car>(Allocator.Temp);
 
             try
             {
-                for (int index = 0; index < vehicles.Length; index++)
+                for (int index = 0; index < vehicles.Length; index += 1)
                 {
-                    EvaluateVehicle(vehicles[index], cars[index], settings);
+                    EvaluateVehicle(vehicles[index], cars[index]);
                 }
             }
             finally
@@ -78,17 +199,46 @@ namespace Traffic_Law_Enforcement
             }
         }
 
-        private void EvaluateVehicle(Entity vehicle, Car car, EnforcementGameplaySettingsState settings)
+        private void RestoreVehiclesMissingProfile()
+        {
+            if (m_TrackedWithoutProfileQuery.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            NativeArray<Entity> vehicles = m_TrackedWithoutProfileQuery.ToEntityArray(Allocator.Temp);
+            NativeArray<Car> cars = m_TrackedWithoutProfileQuery.ToComponentDataArray<Car>(Allocator.Temp);
+            NativeArray<PublicTransportLanePermissionState> states =
+                m_TrackedWithoutProfileQuery.ToComponentDataArray<PublicTransportLanePermissionState>(Allocator.Temp);
+
+            try
+            {
+                for (int index = 0; index < vehicles.Length; index += 1)
+                {
+                    RestoreVehicle(vehicles[index], cars[index], states[index], removeState: true);
+                }
+            }
+            finally
+            {
+                vehicles.Dispose();
+                cars.Dispose();
+                states.Dispose();
+            }
+        }
+
+        private void EvaluateVehicle(Entity vehicle, Car car)
         {
             bool hasState = EntityManager.HasComponent<PublicTransportLanePermissionState>(vehicle);
             PublicTransportLanePermissionState state = hasState
                 ? EntityManager.GetComponentData<PublicTransportLanePermissionState>(vehicle)
                 : default;
+
             CarFlags originalMask = hasState
                 ? state.m_OriginalPublicTransportLaneFlags
                 : (car.m_Flags & PublicTransportLanePolicy.PublicTransportLanePermissionMask);
 
-            if (!PublicTransportLanePolicy.TryGetDesiredPermissionState(vehicle, car, settings, ref m_TypeLookups, out _, out CarFlags desiredMask))
+            if (!m_ProfileData.TryGetComponent(vehicle, out VehicleTrafficLawProfile profile) ||
+                profile.m_ShouldTrack == 0)
             {
                 if (hasState)
                 {
@@ -98,19 +248,30 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
-            CarFlags currentMask = car.m_Flags & PublicTransportLanePolicy.PublicTransportLanePermissionMask;
-            bool emergencyActive = EmergencyVehiclePolicy.IsEmergencyVehicle(car);
-            bool emergencyTransition = hasState && state.m_EmergencyActive != (emergencyActive ? (byte)1 : (byte)0);
+            CarFlags desiredMask =
+                profile.m_DesiredPublicTransportLaneMask &
+                PublicTransportLanePolicy.PublicTransportLanePermissionMask;
+
+            CarFlags currentMask =
+                car.m_Flags & PublicTransportLanePolicy.PublicTransportLanePermissionMask;
+
+            bool emergencyActive = profile.m_EmergencyVehicle != 0;
+            bool emergencyTransition =
+                hasState && state.m_EmergencyActive != (emergencyActive ? (byte)1 : (byte)0);
+
             bool flagsChanged = currentMask != desiredMask;
 
             CarFlags obsoleteRelevantMask = CarFlags.UsePublicTransportLanes;
             bool obsoleteRelevantFlagsChanged =
                 (currentMask & obsoleteRelevantMask) != (desiredMask & obsoleteRelevantMask);
+
             bool preferenceOnlyChange = flagsChanged && !obsoleteRelevantFlagsChanged;
 
             if (flagsChanged)
             {
-                car.m_Flags = (car.m_Flags & ~PublicTransportLanePolicy.PublicTransportLanePermissionMask) | desiredMask;
+                car.m_Flags =
+                    (car.m_Flags & ~PublicTransportLanePolicy.PublicTransportLanePermissionMask) |
+                    desiredMask;
                 EntityManager.SetComponentData(vehicle, car);
             }
 
@@ -153,11 +314,12 @@ namespace Traffic_Law_Enforcement
 
             NativeArray<Entity> vehicles = m_TrackedQuery.ToEntityArray(Allocator.Temp);
             NativeArray<Car> cars = m_TrackedQuery.ToComponentDataArray<Car>(Allocator.Temp);
-            NativeArray<PublicTransportLanePermissionState> states = m_TrackedQuery.ToComponentDataArray<PublicTransportLanePermissionState>(Allocator.Temp);
+            NativeArray<PublicTransportLanePermissionState> states =
+                m_TrackedQuery.ToComponentDataArray<PublicTransportLanePermissionState>(Allocator.Temp);
 
             try
             {
-                for (int index = 0; index < vehicles.Length; index++)
+                for (int index = 0; index < vehicles.Length; index += 1)
                 {
                     RestoreVehicle(vehicles[index], cars[index], states[index], removeState: false);
                 }
@@ -172,13 +334,20 @@ namespace Traffic_Law_Enforcement
             EntityManager.RemoveComponent<PublicTransportLanePermissionState>(m_TrackedQuery);
         }
 
-        private void RestoreVehicle(Entity vehicle, Car car, PublicTransportLanePermissionState state, bool removeState)
+        private void RestoreVehicle(
+            Entity vehicle,
+            Car car,
+            PublicTransportLanePermissionState state,
+            bool removeState)
         {
             CarFlags currentMask = car.m_Flags & PublicTransportLanePolicy.PublicTransportLanePermissionMask;
             bool flagsChanged = currentMask != state.m_OriginalPublicTransportLaneFlags;
+
             if (flagsChanged)
             {
-                car.m_Flags = (car.m_Flags & ~PublicTransportLanePolicy.PublicTransportLanePermissionMask) | state.m_OriginalPublicTransportLaneFlags;
+                car.m_Flags =
+                    (car.m_Flags & ~PublicTransportLanePolicy.PublicTransportLanePermissionMask) |
+                    state.m_OriginalPublicTransportLaneFlags;
                 EntityManager.SetComponentData(vehicle, car);
             }
 
@@ -238,10 +407,12 @@ namespace Traffic_Law_Enforcement
                 extra);
         }
 
-        private static bool StatesEqual(PublicTransportLanePermissionState left, PublicTransportLanePermissionState right)
+        private static bool StatesEqual(
+            PublicTransportLanePermissionState left,
+            PublicTransportLanePermissionState right)
         {
             return left.m_OriginalPublicTransportLaneFlags == right.m_OriginalPublicTransportLaneFlags &&
-                left.m_EmergencyActive == right.m_EmergencyActive;
+                   left.m_EmergencyActive == right.m_EmergencyActive;
         }
     }
 }
