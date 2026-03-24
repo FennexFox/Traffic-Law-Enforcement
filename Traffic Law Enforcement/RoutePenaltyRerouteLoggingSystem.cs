@@ -199,7 +199,7 @@ namespace Traffic_Law_Enforcement
             List<string> penaltyTags = new List<string>(MaxPenaltyTags);
             uint hash = 2166136261u;
             int omittedTagCount = 0;
-            bool previousunauthorizedBusLane = false;
+            bool previousunauthorizedPublicTransportLane = false;
             Entity previousLane = Entity.Null;
             Entity previousLaneOwner = Entity.Null;
 
@@ -209,7 +209,7 @@ namespace Traffic_Law_Enforcement
                 allowedOnPublicTransportLane,
                 ref previousLane,
                 ref previousLaneOwner,
-                ref previousunauthorizedBusLane,
+                ref previousunauthorizedPublicTransportLane,
                 ref profile,
                 ref hash,
                 penaltyTags,
@@ -236,7 +236,7 @@ namespace Traffic_Law_Enforcement
                         allowedOnPublicTransportLane,
                         ref previousLane,
                         ref previousLaneOwner,
-                        ref previousunauthorizedBusLane,
+                        ref previousunauthorizedPublicTransportLane,
                         ref profile,
                         ref hash,
                         penaltyTags,
@@ -253,7 +253,7 @@ namespace Traffic_Law_Enforcement
             bool allowedOnPublicTransportLane,
             ref Entity previousLane,
             ref Entity previousLaneOwner,
-            ref bool previousunauthorizedBusLane,
+            ref bool previousunauthorizedPublicTransportLane,
             ref RoutePenaltyProfile profile,
             ref uint hash,
             List<string> penaltyTags,
@@ -280,19 +280,19 @@ namespace Traffic_Law_Enforcement
                 }
             }
 
-            bool unauthorizedBusLane =
+            bool unauthorizedPublicTransportLane =
                 hasResolvedPublicTransportLanePolicy &&
-                IsunauthorizedBusLane(lane, allowedOnPublicTransportLane);
-            if (unauthorizedBusLane && !previousunauthorizedBusLane)
+                IsunauthorizedPublicTransportLane(lane, allowedOnPublicTransportLane);
+            if (unauthorizedPublicTransportLane && !previousunauthorizedPublicTransportLane)
             {
                 profile.PublicTransportLaneSegments += 1;
-                AppendPenaltyTag(penaltyTags, DescribeunauthorizedBusLaneTag(lane), ref omittedTagCount);
+                AppendPenaltyTag(penaltyTags, DescribeunauthorizedPublicTransportLaneTag(lane), ref omittedTagCount);
             }
 
-            hash = HashLane(hash, lane, unauthorizedBusLane);
+            hash = HashLane(hash, lane, unauthorizedPublicTransportLane);
             previousLane = lane;
             previousLaneOwner = laneOwner;
-            previousunauthorizedBusLane = unauthorizedBusLane;
+            previousunauthorizedPublicTransportLane = unauthorizedPublicTransportLane;
         }
 
         private bool TryGetMidBlockPenaltyTag(Entity sourceLane, Entity sourceOwner, Entity targetLane, Entity targetOwner, out string tag)
@@ -407,7 +407,7 @@ namespace Traffic_Law_Enforcement
             return true;
         }
 
-        private bool IsunauthorizedBusLane(Entity lane, bool allowedOnPublicTransportLane)
+        private bool IsunauthorizedPublicTransportLane(Entity lane, bool allowedOnPublicTransportLane)
         {
             if (lane == Entity.Null || !m_CarLaneData.TryGetComponent(lane, out CarLane laneData))
             {
@@ -485,7 +485,7 @@ namespace Traffic_Law_Enforcement
             return Entity.Null;
         }
 
-        private string DescribeunauthorizedBusLaneTag(Entity lane)
+        private string DescribeunauthorizedPublicTransportLaneTag(Entity lane)
         {
             return DescribeLaneKind(lane) + "(public-only, illegal)";
         }
@@ -621,13 +621,13 @@ namespace Traffic_Law_Enforcement
             return summary;
         }
 
-        private static uint HashLane(uint currentHash, Entity lane, bool unauthorizedBusLane)
+        private static uint HashLane(uint currentHash, Entity lane, bool unauthorizedPublicTransportLane)
         {
             unchecked
             {
                 currentHash ^= (uint)lane.Index;
                 currentHash *= 16777619u;
-                currentHash ^= unauthorizedBusLane ? 0xBADA55u : 0u;
+                currentHash ^= unauthorizedPublicTransportLane ? 0xBADA55u : 0u;
                 currentHash *= 16777619u;
                 return currentHash;
             }
