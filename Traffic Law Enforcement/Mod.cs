@@ -45,6 +45,7 @@ namespace Traffic_Law_Enforcement
             IntersectionMovementPathfindPatches.Apply();
             IntersectionMovementPathfindReflectionPatches.Apply();
             updateSystem.UpdateAfter<EnforcementSaveDataSystem, EnforcementGameTimeSystem>(SystemUpdatePhase.GameSimulation);
+            updateSystem.UpdateBefore<EnforcementSaveDataSystem, VehicleTrafficLawProfileSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateBefore<VehicleTrafficLawProfileSystem, PublicTransportLanePermissionSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateBefore<VehicleTrafficLawProfileSystem, CarNavigationSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateBefore<PathfindingMoneyPenaltySystem, CarNavigationSystem>(SystemUpdatePhase.GameSimulation);

@@ -358,20 +358,6 @@ namespace Traffic_Law_Enforcement
             {
                 EntityManager.SetComponentData(vehicle, updatedProfile);
             }
-
-            bool hasPersistedState =
-                m_PersistedAccessStateData.TryGetComponent(
-                    vehicle,
-                    out PersistedPublicTransportLaneAccessState currentPersistedState);
-
-            if (!hasPersistedState)
-            {
-                EntityManager.AddComponentData(vehicle, updatedPersistedState);
-            }
-            else if (!PersistedStatesEqual(currentPersistedState, updatedPersistedState))
-            {
-                EntityManager.SetComponentData(vehicle, updatedPersistedState);
-            }
         }
 
         private static bool PersistedStatesEqual(
