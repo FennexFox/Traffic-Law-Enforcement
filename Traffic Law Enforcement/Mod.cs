@@ -108,7 +108,7 @@ namespace Traffic_Law_Enforcement
 
             foreach (string filePath in files)
             {
-                string localeId = Path.GetFileNameWithoutExtension(filePath);
+                string localeId = NormalizeLocaleId(Path.GetFileNameWithoutExtension(filePath));
 
                 if (string.Equals(localeId, "en-US", StringComparison.OrdinalIgnoreCase))
                 {
@@ -133,6 +133,21 @@ namespace Traffic_Law_Enforcement
 
                 localizationManager.AddSource(localeId, new PropertiesLocaleSource(filePath, keyMap));
                 log.Info($"Registered locale {localeId} from {Path.GetFileName(filePath)}");
+            }
+        }
+
+        private static string NormalizeLocaleId(string localeId)
+        {
+            switch (localeId)
+            {
+                case "zh-CN":
+                    return "zh-HANS";
+
+                case "zh-TW":
+                    return "zh-HANT";
+
+                default:
+                    return localeId;
             }
         }
 
@@ -193,16 +208,16 @@ namespace Traffic_Law_Enforcement
                     systemLanguage = SystemLanguage.Russian;
                     return true;
 
-                case "zh-CN":
+                case "zh-HANS":
                     localizedName = "简体中文";
                     systemLanguage = SystemLanguage.ChineseSimplified;
                     return true;
 
-                case "zh-TW":
+                case "zh-HANT":
                     localizedName = "繁體中文";
                     systemLanguage = SystemLanguage.ChineseTraditional;
                     return true;
-                    
+
                 default:
                     localizedName = localeId;
                     systemLanguage = SystemLanguage.English;
