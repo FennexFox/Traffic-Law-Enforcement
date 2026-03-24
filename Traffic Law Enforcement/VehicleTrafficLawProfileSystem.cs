@@ -107,6 +107,7 @@ namespace Traffic_Law_Enforcement
 
             NativeArray<Entity> vehicles =
                 m_PersistedWithoutProfileQuery.ToEntityArray(Allocator.Temp);
+            int seededCount = 0;
 
             try
             {
@@ -144,12 +145,16 @@ namespace Traffic_Law_Enforcement
                         };
 
                     EntityManager.AddComponentData(vehicle, seededProfile);
+                    seededCount++;
                 }
             }
             finally
             {
                 vehicles.Dispose();
             }
+            Mod.log.Info(
+                $"[SAVELOAD] SeedProfilesFromPersistedState: seededProfiles={seededCount}, " +
+                $"permissionSettingsMask={permissionSettingsMask}");
         }
 
         private void BuildPendingRefreshList()

@@ -44,6 +44,9 @@ namespace Traffic_Law_Enforcement
 
         public void SetDefaults(Context context)
         {
+            Mod.log.Info(
+                $"[SAVELOAD] SetDefaults: purpose={context.purpose}, " +
+                $"willClearLegacyRuntimeState={context.purpose == Purpose.LoadGame}");
             ResetRuntimeState();
             EnforcementGameplaySettingsService.Apply(CreateInitialGameplaySettings(context));
             m_HasDeserializedData = false;
@@ -53,6 +56,7 @@ namespace Traffic_Law_Enforcement
 
         public void PreDeserialize(Context context)
         {
+            Mod.log.Info($"[SAVELOAD] PreDeserialize: purpose={context.purpose}");
             ResetRuntimeState();
             m_HasDeserializedData = false;
             m_ShouldClearLegacyRuntimeState = false;
@@ -61,11 +65,19 @@ namespace Traffic_Law_Enforcement
 
         public void PostDeserialize(Context context)
         {
+            Mod.log.Info($"[SAVELOAD] PostDeserialize: purpose={context.purpose}");
             m_PendingPostDeserializeApply = true;
         }
 
         public void Serialize<TWriter>(TWriter writer) where TWriter : IWriter
         {
+            Mod.log.Info(
+                $"[SAVELOAD] Serialize begin: version={kSerializationVersion}, " +
+                $"ptViolations={EnforcementTelemetry.GetStatisticsSnapshot().m_PublicTransportLaneViolationCount}, " +
+                $"type2States={m_PublicTransportLaneType2UsageStateQuery.CalculateEntityCount()}, " +
+                $"type3States={m_PublicTransportLaneType3UsageStateQuery.CalculateEntityCount()}, " +
+                $"type4States={m_PublicTransportLaneType4UsageStateQuery.CalculateEntityCount()}, " +
+                $"permissionStates={m_PublicTransportLanePermissionStateQuery.CalculateEntityCount()}");
             writer.Write(kSerializationVersion);
             WriteGameplaySettings(writer, EnforcementGameplaySettingsService.Current);
 
@@ -217,6 +229,7 @@ namespace Traffic_Law_Enforcement
         public void Deserialize<TReader>(TReader reader) where TReader : IReader
         {
             reader.Read(out int version);
+            Mod.log.Info($"[SAVELOAD] Deserialize begin: version={version}");
             if (version != 3 && version != 4 && version != 5 && version != kSerializationVersion)
             {
                 Mod.log.Info($"Unsupported enforcement save-data version {version}. Falling back to defaults.");
@@ -488,6 +501,15 @@ namespace Traffic_Law_Enforcement
 
             m_HasDeserializedData = true;
             m_ShouldClearLegacyRuntimeState = false;
+            Mod.log.Info(
+                $"[SAVELOAD] Deserialize loaded: version={version}, " +
+                $"hasTrackingState={trackingState.HasValue}, " +
+                $"hasPolicyImpactTrackingState={policyImpactTrackingState.HasValue}, " +
+                $"records={records.Count}, timestamps={timestamps.Count}, fineIncomeEvents={fineIncomeEvents.Count}, " +
+                $"pathRequestEvents={pathRequestEvents.Count}, actualViolationEvents={actualViolationEvents.Count}, " +
+                $"avoidedRerouteEvents={avoidedRerouteEvents.Count}, " +
+                $"totalFineAmount={totalFineAmount}, totalPathRequestCount={totalPathRequestCount}, " +
+                $"totalActualPathCount={totalActualPathCount}, totalAvoidedPathCount={totalAvoidedPathCount}");
             m_PendingPostDeserializeApply = true;
         }
 
@@ -523,6 +545,15 @@ namespace Traffic_Law_Enforcement
                     EntityManager.RemoveComponent<PublicTransportLanePermissionState>(m_PublicTransportLanePermissionStateQuery);
                 }
             }
+            Mod.log.Info(
+                $"[SAVELOAD] ApplyLoadedStateToWorld complete: " +
+                $"hasDeserializedData={m_HasDeserializedData}, " +
+                $"shouldClearLegacyRuntimeState={m_ShouldClearLegacyRuntimeState}, " +
+                $"ptViolations={m_PublicTransportLaneViolationQuery.CalculateEntityCount()}, " +
+                $"permissionStates={m_PublicTransportLanePermissionStateQuery.CalculateEntityCount()}, " +
+                $"type2States={m_PublicTransportLaneType2UsageStateQuery.CalculateEntityCount()}, " +
+                $"type3States={m_PublicTransportLaneType3UsageStateQuery.CalculateEntityCount()}, " +
+                $"type4States={m_PublicTransportLaneType4UsageStateQuery.CalculateEntityCount()}");
         }
 
         private Entity EnsureStatisticsEntity()
