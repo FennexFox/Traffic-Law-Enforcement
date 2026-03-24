@@ -18,6 +18,8 @@ namespace Traffic_Law_Enforcement
         private EntityQuery m_TrackedQuery;
         private EntityQuery m_TrackedWithoutProfileQuery;
         private EntityQuery m_PendingExitQuery;
+        private BufferLookup<CarNavigationLane> m_NavigationLaneData;
+        private ComponentLookup<ConnectionLane> m_ConnectionLaneData;
         private ComponentLookup<CarLane> m_CarLaneData;
         private ComponentLookup<PathOwner> m_PathOwnerData;
         private ComponentLookup<CarCurrentLane> m_CurrentLaneData;
@@ -42,6 +44,8 @@ namespace Traffic_Law_Enforcement
                 ComponentType.ReadOnly<CarCurrentLane>(),
                 ComponentType.ReadOnly<PublicTransportLanePendingExit>());
             m_CarLaneData = GetComponentLookup<CarLane>(true);
+            m_NavigationLaneData = GetBufferLookup<CarNavigationLane>(true);
+            m_ConnectionLaneData = GetComponentLookup<ConnectionLane>(true);
             m_ChangedCarQuery = GetEntityQuery(ComponentType.ReadWrite<Car>());
             m_ChangedCarQuery.SetChangedVersionFilter(ComponentType.ReadOnly<Car>());
             m_TrackedQuery = GetEntityQuery(
@@ -89,6 +93,8 @@ namespace Traffic_Law_Enforcement
             m_TypeLookups.Update(this);
             m_PermissionStateData.Update(this);
             m_PendingExitData.Update(this);
+            m_NavigationLaneData = GetBufferLookup<CarNavigationLane>(true);
+            m_ConnectionLaneData = GetComponentLookup<ConnectionLane>(true);
 
             EnforcementGameplaySettingsState settings = EnforcementGameplaySettingsService.Current;
             bool enforcementEnabled = Mod.IsPublicTransportLaneEnforcementEnabled;
@@ -146,6 +152,48 @@ namespace Traffic_Law_Enforcement
             return laneEntity != Entity.Null &&
                 m_CarLaneData.TryGetComponent(laneEntity, out CarLane laneData) &&
                 (laneData.m_Flags & Game.Net.CarLaneFlags.PublicOnly) != 0;
+        }
+
+        private bool IsCommittedToImmediatePublicTransportEntry(Entity vehicle, Entity currentLaneEntity)
+        {
+            if (!m_NavigationLaneData.TryGetBuffer(vehicle, out DynamicBuffer<CarNavigationLane> navigationLanes))
+            {
+                return false;
+            }
+
+            Entity firstUpcomingLane = Entity.Null;
+            Entity secondUpcomingLane = Entity.Null;
+
+            for (int index = 0; index < navigationLanes.Length; index += 1)
+            {
+                Entity nextLane = navigationLanes[index].m_Lane;
+                if (nextLane == Entity.Null || nextLane == currentLaneEntity)
+                {
+                    continue;
+                }
+
+                if (firstUpcomingLane == Entity.Null)
+                {
+                    firstUpcomingLane = nextLane;
+                    continue;
+                }
+
+                secondUpcomingLane = nextLane;
+                break;
+            }
+
+            if (firstUpcomingLane == Entity.Null)
+            {
+                return false;
+            }
+
+            if (IsPublicOnlyLane(firstUpcomingLane))
+            {
+                return true;
+            }
+
+            bool firstIsConnection = m_ConnectionLaneData.HasComponent(firstUpcomingLane);
+            return firstIsConnection && IsPublicOnlyLane(secondUpcomingLane);
         }
 
         private void RemovePendingExitIfPresent(Entity vehicle)
@@ -361,10 +409,16 @@ namespace Traffic_Law_Enforcement
             bool currentlyHasPublicTransportLaneFlag =
                 (currentMask & CarFlags.UsePublicTransportLanes) != 0;
 
+            bool committedToImmediatePublicTransportEntry =
+                permissionBeingRevoked &&
+                currentlyHasPublicTransportLaneFlag &&
+                !currentLaneStillInExitCorridor &&
+                IsCommittedToImmediatePublicTransportEntry(vehicle, currentLaneEntity);
+
             bool shouldGrantPendingExitGrace =
                 permissionBeingRevoked &&
                 currentlyHasPublicTransportLaneFlag &&
-                currentLaneStillInExitCorridor;
+                (currentLaneStillInExitCorridor || committedToImmediatePublicTransportEntry);
 
             if (shouldGrantPendingExitGrace)
             {
