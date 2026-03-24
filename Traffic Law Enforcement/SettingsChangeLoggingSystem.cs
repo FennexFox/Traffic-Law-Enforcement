@@ -38,6 +38,15 @@ namespace Traffic_Law_Enforcement
         }
         private void LogChanges(string inGameTimeLabel, LoggedSettingsSnapshot previous, LoggedSettingsSnapshot current)
         {
+            bool invalidateVehicleUtilsPenaltyCache =
+                previous.Gameplay.EnablePublicTransportLaneEnforcement != current.Gameplay.EnablePublicTransportLaneEnforcement ||
+                previous.Gameplay.PublicTransportLaneFineAmount != current.Gameplay.PublicTransportLaneFineAmount;
+
+            if (invalidateVehicleUtilsPenaltyCache)
+            {
+                VehicleUtilsPatches.InvalidateCachedPenaltyValues();
+            }
+            
             LogChange(inGameTimeLabel, nameof(Setting.EnablePublicTransportLaneEnforcement), previous.Gameplay.EnablePublicTransportLaneEnforcement, current.Gameplay.EnablePublicTransportLaneEnforcement);
             LogChange(inGameTimeLabel, nameof(Setting.EnableMidBlockCrossingEnforcement), previous.Gameplay.EnableMidBlockCrossingEnforcement, current.Gameplay.EnableMidBlockCrossingEnforcement);
             LogChange(inGameTimeLabel, nameof(Setting.EnableIntersectionMovementEnforcement), previous.Gameplay.EnableIntersectionMovementEnforcement, current.Gameplay.EnableIntersectionMovementEnforcement);

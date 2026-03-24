@@ -51,6 +51,8 @@ namespace Traffic_Law_Enforcement
             {
                 s_Harmony = new Harmony(HarmonyId);
 
+                InvalidateCachedPenaltyValues();
+
                 HarmonyMethod prefix =
                     new HarmonyMethod(typeof(VehicleUtilsPatches), nameof(SetupPathfindPrefix));
                 s_Harmony.Patch(s_SetupPathfindMethod, prefix: prefix);
@@ -81,6 +83,11 @@ namespace Traffic_Law_Enforcement
             s_CachedConfiguredPublicTransportLaneFine = 0;
         }
 
+        internal static void InvalidateCachedPenaltyValues()
+        {
+            s_HasCachedPenaltyValues = false;
+        }
+
         private static void SetupPathfindPrefix(ref SetupQueueItem item)
         {
             EnforcementPolicyImpactService.RecordPathRequest();
@@ -98,7 +105,10 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
-            RefreshCachedPenaltyValues();
+            if (!s_HasCachedPenaltyValues)
+            {
+                RefreshCachedPenaltyValues();
+            }
 
             SyncPrivateTrafficIgnoredRules(entityManager, owner, ref item);
 
