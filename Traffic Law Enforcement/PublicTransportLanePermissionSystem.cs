@@ -417,7 +417,7 @@ namespace Traffic_Law_Enforcement
             }
 
             bool currentlyHasPublicTransportLaneFlag =
-                (currentMask & CarFlags.UsePublicTransportLanes) != 0;
+                (car.m_Flags & CarFlags.UsePublicTransportLanes) != 0;
 
             bool immediatePublicTransportEntryPlanned =
                 permissionBeingRevoked &&
@@ -461,15 +461,13 @@ namespace Traffic_Law_Enforcement
                         car,
                         "pt-pending-exit-grace-granted",
                         PublicTransportLanePolicy.DescribeVehicleRole(vehicle, ref m_TypeLookups),
-                        $"currentLane={currentLaneEntity}, originalMask={originalMask}, currentMask={currentMask}, desiredMaskBeforeGrace={desiredMask}");
+                        $"currentLane={currentLaneEntity}, originalMask={originalMask}, engineUseFlag={(car.m_Flags & CarFlags.UsePublicTransportLanes) != 0}, modAllowsAccess={modAllowsAccess}");
                 }
 
                 if (bootstrapImmediateEntryGrace)
                 {
                     immediateEntryGraceConsumed = 1;
                 }
-
-                desiredMask = currentMask;
             }
             else if (hasPendingExit)
             {
@@ -479,7 +477,6 @@ namespace Traffic_Law_Enforcement
                 }
                 else if (currentLaneStillInExitCorridor)
                 {
-                    desiredMask = currentMask;
                 }
                 else if (pendingExit.m_HasLeftPublicTransportLane == 0)
                 {
@@ -491,9 +488,7 @@ namespace Traffic_Law_Enforcement
                         car,
                         "pt-pending-exit-safe-lane-reached",
                         PublicTransportLanePolicy.DescribeVehicleRole(vehicle, ref m_TypeLookups),
-                        $"currentLane={currentLaneEntity}, graceGrantedLane={pendingExit.m_LaneWhenGraceGranted}, originalMask={originalMask}, currentMask={currentMask}, desiredMaskStillDeferred={desiredMask}");
-
-                    desiredMask = currentMask;
+                        $"currentLane={currentLaneEntity}, graceGrantedLane={pendingExit.m_LaneWhenGraceGranted}, originalMask={originalMask}, engineUseFlag={(car.m_Flags & CarFlags.UsePublicTransportLanes) != 0}, modAllowsAccess={modAllowsAccess}");
                 }
                 else
                 {
@@ -523,6 +518,7 @@ namespace Traffic_Law_Enforcement
                 m_OriginalPublicTransportLaneFlags = originalMask,
                 m_EmergencyActive = emergencyActive ? (byte)1 : (byte)0,
                 m_ImmediateEntryGraceConsumed = immediateEntryGraceConsumed,
+                m_PublicTransportLaneAccessBits = accessBits,
             };
 
             if (!hasState)
@@ -659,7 +655,8 @@ namespace Traffic_Law_Enforcement
         {
             return left.m_OriginalPublicTransportLaneFlags == right.m_OriginalPublicTransportLaneFlags &&
                 left.m_EmergencyActive == right.m_EmergencyActive &&
-                left.m_ImmediateEntryGraceConsumed == right.m_ImmediateEntryGraceConsumed;
+                left.m_ImmediateEntryGraceConsumed == right.m_ImmediateEntryGraceConsumed &&
+                left.m_PublicTransportLaneAccessBits == right.m_PublicTransportLaneAccessBits;
         }
     }
 }

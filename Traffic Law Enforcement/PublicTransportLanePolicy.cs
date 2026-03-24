@@ -90,6 +90,91 @@ namespace Traffic_Law_Enforcement
             };
         }
 
+        public void Update(ref SystemState state)
+        {
+            CarData.Update(ref state);
+            PublicTransportData.Update(ref state);
+            TaxiData.Update(ref state);
+            PoliceCarData.Update(ref state);
+            FireEngineData.Update(ref state);
+            AmbulanceData.Update(ref state);
+            GarbageTruckData.Update(ref state);
+            PostVanData.Update(ref state);
+            MaintenanceVehicleData.Update(ref state);
+            PersonalCarData.Update(ref state);
+            DeliveryTruckData.Update(ref state);
+            CargoTransportData.Update(ref state);
+            HearseData.Update(ref state);
+            PrisonerTransportData.Update(ref state);
+            ParkMaintenanceVehicleData.Update(ref state);
+            PrefabRefData.Update(ref state);
+            PrefabMaintenanceVehicleData.Update(ref state);
+        }
+
+        public void Update(GameSystemBase system)
+        {
+            CarData.Update(system);
+            PublicTransportData.Update(system);
+            TaxiData.Update(system);
+            PoliceCarData.Update(system);
+            FireEngineData.Update(system);
+            AmbulanceData.Update(system);
+            GarbageTruckData.Update(system);
+            PostVanData.Update(system);
+            MaintenanceVehicleData.Update(system);
+            PersonalCarData.Update(system);
+            DeliveryTruckData.Update(system);
+            CargoTransportData.Update(system);
+            HearseData.Update(system);
+            PrisonerTransportData.Update(system);
+            ParkMaintenanceVehicleData.Update(system);
+            PrefabRefData.Update(system);
+            PrefabMaintenanceVehicleData.Update(system);
+        }
+    }
+
+    public static class EmergencyVehiclePolicy
+    {
+        public static bool IsEmergencyVehicle(Car car)
+        {
+            return (car.m_Flags & CarFlags.Emergency) != 0;
+        }
+
+        public static bool IsEmergencyVehicle(Entity vehicle, ref PublicTransportLaneVehicleTypeLookups lookups)
+        {
+            return lookups.CarData.TryGetComponent(vehicle, out Car car) && IsEmergencyVehicle(car);
+        }
+    }
+
+    public static class PublicTransportLanePolicy
+    {
+        public const CarFlags PublicTransportLanePermissionMask = CarFlags.UsePublicTransportLanes | CarFlags.PreferPublicTransportLanes;
+
+        public static bool IsAllowedOnPublicTransportLane(Entity vehicle, ref PublicTransportLaneVehicleTypeLookups lookups)
+        {
+            if (EmergencyVehiclePolicy.IsEmergencyVehicle(vehicle, ref lookups))
+            {
+                return true;
+            }
+
+            return HasPublicTransportLanePermissionFlag(vehicle, ref lookups);
+        }
+
+        public static bool HasPublicTransportLanePermissionFlag(Entity vehicle, ref PublicTransportLaneVehicleTypeLookups lookups)
+        {
+            return lookups.CarData.TryGetComponent(vehicle, out Car car) && HasPublicTransportLanePermissionFlag(car);
+        }
+
+        public static bool HasPublicTransportLanePermissionFlag(Car car)
+        {
+            return (car.m_Flags & CarFlags.UsePublicTransportLanes) != 0;
+        }
+
+        public static int GetPermissionSettingsMask(EnforcementGameplaySettingsState settings)
+        {
+            return settings.GetPermissionSettingsMask();
+        }
+
         public static PublicTransportLaneAccessBits BuildAccessBits(
             Entity vehicle,
             Car car,
@@ -234,91 +319,6 @@ namespace Traffic_Law_Enforcement
         public static bool IsType4(PublicTransportLaneAccessBits bits)
         {
             return !VanillaAllowsAccess(bits) && !ModAllowsAccess(bits);
-        }
-
-        public void Update(ref SystemState state)
-        {
-            CarData.Update(ref state);
-            PublicTransportData.Update(ref state);
-            TaxiData.Update(ref state);
-            PoliceCarData.Update(ref state);
-            FireEngineData.Update(ref state);
-            AmbulanceData.Update(ref state);
-            GarbageTruckData.Update(ref state);
-            PostVanData.Update(ref state);
-            MaintenanceVehicleData.Update(ref state);
-            PersonalCarData.Update(ref state);
-            DeliveryTruckData.Update(ref state);
-            CargoTransportData.Update(ref state);
-            HearseData.Update(ref state);
-            PrisonerTransportData.Update(ref state);
-            ParkMaintenanceVehicleData.Update(ref state);
-            PrefabRefData.Update(ref state);
-            PrefabMaintenanceVehicleData.Update(ref state);
-        }
-
-        public void Update(GameSystemBase system)
-        {
-            CarData.Update(system);
-            PublicTransportData.Update(system);
-            TaxiData.Update(system);
-            PoliceCarData.Update(system);
-            FireEngineData.Update(system);
-            AmbulanceData.Update(system);
-            GarbageTruckData.Update(system);
-            PostVanData.Update(system);
-            MaintenanceVehicleData.Update(system);
-            PersonalCarData.Update(system);
-            DeliveryTruckData.Update(system);
-            CargoTransportData.Update(system);
-            HearseData.Update(system);
-            PrisonerTransportData.Update(system);
-            ParkMaintenanceVehicleData.Update(system);
-            PrefabRefData.Update(system);
-            PrefabMaintenanceVehicleData.Update(system);
-        }
-    }
-
-    public static class EmergencyVehiclePolicy
-    {
-        public static bool IsEmergencyVehicle(Car car)
-        {
-            return (car.m_Flags & CarFlags.Emergency) != 0;
-        }
-
-        public static bool IsEmergencyVehicle(Entity vehicle, ref PublicTransportLaneVehicleTypeLookups lookups)
-        {
-            return lookups.CarData.TryGetComponent(vehicle, out Car car) && IsEmergencyVehicle(car);
-        }
-    }
-
-    public static class PublicTransportLanePolicy
-    {
-        public const CarFlags PublicTransportLanePermissionMask = CarFlags.UsePublicTransportLanes | CarFlags.PreferPublicTransportLanes;
-
-        public static bool IsAllowedOnPublicTransportLane(Entity vehicle, ref PublicTransportLaneVehicleTypeLookups lookups)
-        {
-            if (EmergencyVehiclePolicy.IsEmergencyVehicle(vehicle, ref lookups))
-            {
-                return true;
-            }
-
-            return HasPublicTransportLanePermissionFlag(vehicle, ref lookups);
-        }
-
-        public static bool HasPublicTransportLanePermissionFlag(Entity vehicle, ref PublicTransportLaneVehicleTypeLookups lookups)
-        {
-            return lookups.CarData.TryGetComponent(vehicle, out Car car) && HasPublicTransportLanePermissionFlag(car);
-        }
-
-        public static bool HasPublicTransportLanePermissionFlag(Car car)
-        {
-            return (car.m_Flags & CarFlags.UsePublicTransportLanes) != 0;
-        }
-
-        public static int GetPermissionSettingsMask(EnforcementGameplaySettingsState settings)
-        {
-            return settings.GetPermissionSettingsMask();
         }
 
         public static bool ModAllowsPublicTransportLane(
