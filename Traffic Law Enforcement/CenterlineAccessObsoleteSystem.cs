@@ -120,7 +120,6 @@ namespace Traffic_Law_Enforcement
             m_CurrentLaneData.Update(this);
             m_PathOwnerData.Update(this);
             m_OwnerData.Update(this);
-            m_PrefabRefData.Update(this);
             m_CarData.Update(this);
             m_AccessOriginWatchData.Update(this);
             m_ObsoleteStateData.Update(this);
@@ -132,6 +131,13 @@ namespace Traffic_Law_Enforcement
             m_TypeLookups.Update(this);
 
             bool shouldLogEnforcementEvents = EnforcementLoggingPolicy.ShouldLogEnforcementEvents();
+            bool shouldLogPathObsoleteSources = EnforcementLoggingPolicy.ShouldLogPathObsoleteSources();
+            bool shouldCollectPrefabLoggingContext = shouldLogEnforcementEvents || shouldLogPathObsoleteSources;
+
+            if (shouldCollectPrefabLoggingContext)
+            {
+                m_PrefabRefData.Update(this);
+            }
 
             m_CandidateVehicles.Clear();
             CollectCandidateVehicles(m_CurrentLaneChangedQuery);
@@ -212,13 +218,11 @@ namespace Traffic_Law_Enforcement
                     pathOwner.m_State |= PathFlags.Obsolete;
                     EntityManager.SetComponentData(vehicle, pathOwner);
 
-                    string role = PublicTransportLanePolicy.DescribeVehicleRole(vehicle, ref m_TypeLookups);
-                    string extra =
-                        $"sourceLane={sourceLane}, targetLane={targetLane}, transitionIndex={transitionIndex}, " +
-                        $"transitionKind={transitionKind}, transitionFamily={transitionFamily}, repeatCount={repeatCount}, " +
-                        $"laneShapeCurrent={DescribeLaneShape(currentLane.m_Lane)}, " +
-                        $"laneShapeSource={DescribeLaneShape(sourceLane)}, " +
-                        $"laneShapeTarget={DescribeLaneShape(targetLane)}";
+                    string role = null;
+                    if (shouldLogEnforcementEvents || shouldLogPathObsoleteSources)
+                    {
+                        role = PublicTransportLanePolicy.DescribeVehicleRole(vehicle, ref m_TypeLookups);
+                    }
 
                     if (repeatCount >= 3 && shouldLogEnforcementEvents)
                     {
@@ -228,16 +232,26 @@ namespace Traffic_Law_Enforcement
                             $"transitionIndex={transitionIndex}, transitionKind={transitionKind}, transitionFamily={transitionFamily}");
                     }
 
-                    PathObsoleteTraceLogging.Record(
-                        "CENTERLINE",
-                        vehicle,
-                        currentLane.m_Lane,
-                        stateBefore,
-                        pathOwner.m_State,
-                        reason,
-                        m_CarData[vehicle],
-                        role,
-                        extra);
+                    if (shouldLogPathObsoleteSources)
+                    {
+                        string extra =
+                            $"sourceLane={sourceLane}, targetLane={targetLane}, transitionIndex={transitionIndex}, " +
+                            $"transitionKind={transitionKind}, transitionFamily={transitionFamily}, repeatCount={repeatCount}, " +
+                            $"laneShapeCurrent={DescribeLaneShape(currentLane.m_Lane)}, " +
+                            $"laneShapeSource={DescribeLaneShape(sourceLane)}, " +
+                            $"laneShapeTarget={DescribeLaneShape(targetLane)}";
+
+                        PathObsoleteTraceLogging.Record(
+                            "CENTERLINE",
+                            vehicle,
+                            currentLane.m_Lane,
+                            stateBefore,
+                            pathOwner.m_State,
+                            reason,
+                            m_CarData[vehicle],
+                            role,
+                            extra);
+                    }
 
                     RecordObservedSnapshot(vehicle, currentLane.m_Lane, sourceLane, targetLane, transitionIndex, evaluationResult, transitionFamily);
 
