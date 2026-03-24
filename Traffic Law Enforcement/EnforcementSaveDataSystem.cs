@@ -565,8 +565,7 @@ namespace Traffic_Law_Enforcement
 
                     for (int index = 0; index < ptStateCount; index += 1)
                     {
-                        Entity vehicle = Entity.Null;
-                        ((IReader)reader).Read(ref vehicle);
+                        reader.Read(out Entity vehicle);
 
                         reader.Read(out byte shouldTrack);
                         reader.Read(out byte emergencyVehicle);

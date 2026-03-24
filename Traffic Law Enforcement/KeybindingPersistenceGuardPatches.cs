@@ -8,9 +8,9 @@ using HarmonyLib;
 
 namespace Traffic_Law_Enforcement
 {
-    internal static class SettingsPersistenceDiagnosticPatches
+    internal static class KeybindingPersistenceGuardPatches
     {
-        private const string HarmonyId = "Traffic_Law_Enforcement.SettingsPersistenceDiagnosticPatches";
+        private const string HarmonyId = "Traffic_Law_Enforcement.KeybindingPersistenceGuardPatches";
 
         private static readonly MethodInfo s_KeybindingSettingsBindingsGetter =
             AccessTools.PropertyGetter(typeof(KeybindingSettings), nameof(KeybindingSettings.bindings));
@@ -29,8 +29,8 @@ namespace Traffic_Law_Enforcement
             try
             {
                 s_Harmony = new Harmony(HarmonyId);
-                HarmonyMethod prefix = new HarmonyMethod(typeof(SettingsPersistenceDiagnosticPatches), nameof(KeybindingSettingsBindingsPrefix));
-                HarmonyMethod postfix = new HarmonyMethod(typeof(SettingsPersistenceDiagnosticPatches), nameof(KeybindingSettingsBindingsPostfix));
+                HarmonyMethod prefix = new HarmonyMethod(typeof(KeybindingPersistenceGuardPatches), nameof(KeybindingSettingsBindingsPrefix));
+                HarmonyMethod postfix = new HarmonyMethod(typeof(KeybindingPersistenceGuardPatches), nameof(KeybindingSettingsBindingsPostfix));
                 s_Harmony.Patch(s_KeybindingSettingsBindingsGetter, prefix: prefix, postfix: postfix);
             }
             catch (Exception ex)
@@ -51,7 +51,7 @@ namespace Traffic_Law_Enforcement
             s_Harmony = null;
         }
 
-        public static void CaptureCurrentBindingSnapshot()
+        public static void CaptureCurrentBindings()
         {
             try
             {
@@ -69,7 +69,7 @@ namespace Traffic_Law_Enforcement
             }
             catch (Exception ex)
             {
-                Mod.log.Error(ex, "Failed to capture current binding snapshot.");
+                Mod.log.Error(ex, "Failed to capture current keybinding state.");
             }
         }
 
