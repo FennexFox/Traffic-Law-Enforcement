@@ -86,8 +86,6 @@ namespace Traffic_Law_Enforcement
 
         private static void SetupPathfindPrefix(ref SetupQueueItem item)
         {
-            EnforcementPolicyImpactService.RecordPathRequest();
-
             World world = World.DefaultGameObjectInjectionWorld;
             if (world == null)
             {
@@ -100,6 +98,8 @@ namespace Traffic_Law_Enforcement
             {
                 return;
             }
+
+            EnforcementPolicyImpactService.RecordPathRequest(owner.Index);
 
             if (!s_HasCachedPenaltyValues)
             {

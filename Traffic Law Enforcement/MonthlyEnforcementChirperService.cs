@@ -11,6 +11,7 @@ namespace Traffic_Law_Enforcement
     {
         public long m_MonthIndex;
         public int m_TotalPathRequestCount;
+        public int m_TotalActualPathCount;
         public int m_PublicTransportLaneCount;
         public int m_MidBlockCrossingCount;
         public int m_IntersectionMovementCount;
@@ -26,6 +27,7 @@ namespace Traffic_Law_Enforcement
         public MonthlyEnforcementTrackingState(
             long monthIndex,
             int totalPathRequestCount,
+            int totalActualPathCount,
             int publicTransportLaneCount,
             int midBlockCrossingCount,
             int intersectionMovementCount,
@@ -40,6 +42,7 @@ namespace Traffic_Law_Enforcement
         {
             m_MonthIndex = monthIndex;
             m_TotalPathRequestCount = totalPathRequestCount;
+            m_TotalActualPathCount = totalActualPathCount;
             m_PublicTransportLaneCount = publicTransportLaneCount;
             m_MidBlockCrossingCount = midBlockCrossingCount;
             m_IntersectionMovementCount = intersectionMovementCount;
@@ -58,6 +61,7 @@ namespace Traffic_Law_Enforcement
     {
         public long m_MonthIndex;
         public int m_TotalPathRequestCount;
+        public int m_TotalActualPathCount;
         public int m_PublicTransportLaneCount;
         public int m_MidBlockCrossingCount;
         public int m_IntersectionMovementCount;
@@ -73,6 +77,7 @@ namespace Traffic_Law_Enforcement
         public MonthlyEnforcementReport(
             long monthIndex,
             int totalPathRequestCount,
+            int totalActualPathCount,
             int publicTransportLaneCount,
             int midBlockCrossingCount,
             int intersectionMovementCount,
@@ -87,6 +92,7 @@ namespace Traffic_Law_Enforcement
         {
             m_MonthIndex = monthIndex;
             m_TotalPathRequestCount = totalPathRequestCount;
+            m_TotalActualPathCount = totalActualPathCount;
             m_PublicTransportLaneCount = publicTransportLaneCount;
             m_MidBlockCrossingCount = midBlockCrossingCount;
             m_IntersectionMovementCount = intersectionMovementCount;
@@ -100,8 +106,8 @@ namespace Traffic_Law_Enforcement
             m_IntersectionMovementAvoidedEventCount = intersectionMovementAvoidedEventCount;
         }
 
-        public int TotalViolationCount => m_PublicTransportLaneCount + m_MidBlockCrossingCount + m_IntersectionMovementCount;
-        public int TotalDecisionCount => TotalViolationCount + m_TotalAvoidedPathCount;
+        public int TotalViolationCount => m_TotalActualPathCount;
+        public int TotalDecisionCount => m_TotalActualPathCount + m_TotalAvoidedPathCount;
     }
 
     public static class MonthlyEnforcementChirperService
@@ -207,9 +213,10 @@ namespace Traffic_Law_Enforcement
             report = new MonthlyEnforcementReport(
                 s_TrackingState.m_MonthIndex,
                 ClampToNonNegative(totals.TotalPathRequestCount - s_TrackingState.m_TotalPathRequestCount),
-                ClampToNonNegative(EnforcementTelemetry.PublicTransportLaneViolationCount - s_TrackingState.m_PublicTransportLaneCount),
-                ClampToNonNegative(EnforcementTelemetry.MidBlockCrossingViolationCount - s_TrackingState.m_MidBlockCrossingCount),
-                ClampToNonNegative(EnforcementTelemetry.IntersectionMovementViolationCount - s_TrackingState.m_IntersectionMovementCount),
+                ClampToNonNegative(totals.TotalActualPathCount - s_TrackingState.m_TotalActualPathCount),
+                ClampToNonNegative(totals.PublicTransportLaneActualCount - s_TrackingState.m_PublicTransportLaneCount),
+                ClampToNonNegative(totals.MidBlockCrossingActualCount - s_TrackingState.m_MidBlockCrossingCount),
+                ClampToNonNegative(totals.IntersectionMovementActualCount - s_TrackingState.m_IntersectionMovementCount),
                 ClampToNonNegative(EnforcementTelemetry.TotalFineAmount - s_TrackingState.m_TotalFineAmount),
                 ClampToNonNegative(totals.TotalAvoidedPathCount - s_TrackingState.m_TotalAvoidedPathCount),
                 ClampToNonNegative(totals.PublicTransportLaneFineAmount - s_TrackingState.m_PublicTransportLaneFineAmount),
@@ -235,6 +242,7 @@ namespace Traffic_Law_Enforcement
             return new MonthlyEnforcementReport(
                 EnforcementGameTime.GetMonthIndex(GetCurrentPeriodStartMonthTicks(EnforcementGameTime.CurrentTimestampMonthTicks)),
                 snapshot.TotalPathRequestCount,
+                snapshot.TotalActualPathCount,
                 snapshot.PublicTransportLaneActualCount,
                 snapshot.MidBlockCrossingActualCount,
                 snapshot.IntersectionMovementActualCount,
@@ -332,9 +340,10 @@ namespace Traffic_Law_Enforcement
             return new MonthlyEnforcementTrackingState(
                 currentMonthIndex,
                 totals.TotalPathRequestCount,
-                EnforcementTelemetry.PublicTransportLaneViolationCount,
-                EnforcementTelemetry.MidBlockCrossingViolationCount,
-                EnforcementTelemetry.IntersectionMovementViolationCount,
+                totals.TotalActualPathCount,
+                totals.PublicTransportLaneActualCount,
+                totals.MidBlockCrossingActualCount,
+                totals.IntersectionMovementActualCount,
                 EnforcementTelemetry.TotalFineAmount,
                 totals.TotalAvoidedPathCount,
                 totals.PublicTransportLaneFineAmount,
@@ -352,9 +361,10 @@ namespace Traffic_Law_Enforcement
             return new MonthlyEnforcementReport(
                 trackingState.m_MonthIndex,
                 ClampToNonNegative(totals.TotalPathRequestCount - trackingState.m_TotalPathRequestCount),
-                ClampToNonNegative(EnforcementTelemetry.PublicTransportLaneViolationCount - trackingState.m_PublicTransportLaneCount),
-                ClampToNonNegative(EnforcementTelemetry.MidBlockCrossingViolationCount - trackingState.m_MidBlockCrossingCount),
-                ClampToNonNegative(EnforcementTelemetry.IntersectionMovementViolationCount - trackingState.m_IntersectionMovementCount),
+                ClampToNonNegative(totals.TotalActualPathCount - trackingState.m_TotalActualPathCount),
+                ClampToNonNegative(totals.PublicTransportLaneActualCount - trackingState.m_PublicTransportLaneCount),
+                ClampToNonNegative(totals.MidBlockCrossingActualCount - trackingState.m_MidBlockCrossingCount),
+                ClampToNonNegative(totals.IntersectionMovementActualCount - trackingState.m_IntersectionMovementCount),
                 ClampToNonNegative(EnforcementTelemetry.TotalFineAmount - trackingState.m_TotalFineAmount),
                 ClampToNonNegative(totals.TotalAvoidedPathCount - trackingState.m_TotalAvoidedPathCount),
                 ClampToNonNegative(totals.PublicTransportLaneFineAmount - trackingState.m_PublicTransportLaneFineAmount),
@@ -384,6 +394,7 @@ namespace Traffic_Law_Enforcement
         {
             return left.m_MonthIndex == right.m_MonthIndex
                 && left.m_TotalPathRequestCount == right.m_TotalPathRequestCount
+                && left.m_TotalActualPathCount == right.m_TotalActualPathCount
                 && left.m_PublicTransportLaneCount == right.m_PublicTransportLaneCount
                 && left.m_MidBlockCrossingCount == right.m_MidBlockCrossingCount
                 && left.m_IntersectionMovementCount == right.m_IntersectionMovementCount

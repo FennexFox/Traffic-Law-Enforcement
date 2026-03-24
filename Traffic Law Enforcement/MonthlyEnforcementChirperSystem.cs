@@ -642,8 +642,8 @@ namespace Traffic_Law_Enforcement
                 FormatLocalizedTextForLocale(
                     localeId,
                     kTotalLineFormatLocaleId,
-                    FormatViolationRate(localeId, report.TotalViolationCount, report.m_TotalPathRequestCount),
-                    FormatSuppressionFailureRate(localeId, report.TotalViolationCount, report.m_TotalAvoidedPathCount),
+                    FormatViolationRate(localeId, report.m_TotalActualPathCount, report.m_TotalPathRequestCount),
+                    FormatSuppressionFailureRate(localeId, report.m_TotalActualPathCount, report.m_TotalAvoidedPathCount),
                     FormatMoney(localeId, report.m_TotalFineAmount)) + "\n" +
                 FormatLocalizedTextForLocale(
                     localeId,
@@ -678,15 +678,15 @@ namespace Traffic_Law_Enforcement
             return FormatLocalizedTextForLocale(localeId, kPeriodPointFormatLocaleId, monthText, year, hour, minute);
         }
 
-        private static string FormatViolationRate(string localeId, int finedViolationCount, int avoidedPathCount)
+        private static string FormatViolationRate(string localeId, int finedViolationCount, int denominator)
         {
             CultureInfo culture = GetCultureForLocale(localeId);
-            if (avoidedPathCount <= 0)
+            if (denominator <= 0)
             {
                 return 0d.ToString("0.0", culture) + "%";
             }
 
-            return (100d * finedViolationCount / avoidedPathCount).ToString("0.0", culture) + "%";
+            return (100d * finedViolationCount / denominator).ToString("0.0", culture) + "%";
         }
 
         private static string FormatSuppressionFailureRate(string localeId, int finedViolationCount, int avoidedPathCount)

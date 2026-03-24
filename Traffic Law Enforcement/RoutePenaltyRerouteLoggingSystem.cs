@@ -131,7 +131,7 @@ namespace Traffic_Law_Enforcement
                 {
                     if (ShouldLogReroute(previousSnapshot, snapshot))
                     {
-                        RecordRerouteTelemetry(previousSnapshot, snapshot);
+                        RecordRerouteTelemetry(vehicle, previousSnapshot, snapshot);
 
                         if (loggingEnabled && logsEmitted < MaxLogsPerUpdate)
                         {
@@ -144,8 +144,6 @@ namespace Traffic_Law_Enforcement
                 }
                 else
                 {
-                    // Record vehicleRouteDenominator when creating the first route snapshot
-                    EnforcementPolicyImpactService.RecordPathRequest();
                     m_LastSnapshots[vehicle] = snapshot;
                 }
             }
@@ -600,6 +598,7 @@ namespace Traffic_Law_Enforcement
         }
 
         private static void RecordRerouteTelemetry(
+            Entity vehicle,
             RoutePenaltySnapshot previousSnapshot,
             RoutePenaltySnapshot currentSnapshot)
         {
@@ -621,6 +620,7 @@ namespace Traffic_Law_Enforcement
                 currentSnapshot.Profile.IntersectionTransitions;
 
             EnforcementPolicyImpactService.RecordAvoidedReroute(
+                vehicle.Index,
                 avoidedPublicTransportLanePenalty,
                 avoidedMidBlockPenalty,
                 avoidedIntersectionPenalty);
