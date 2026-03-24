@@ -295,7 +295,10 @@ namespace Traffic_Law_Enforcement
             if (!hasProfile)
             {
                 EntityManager.AddComponentData(vehicle, updatedProfile);
-                return;
+            }
+            else if (!ProfilesEqual(currentProfile, updatedProfile))
+            {
+                EntityManager.SetComponentData(vehicle, updatedProfile);
             }
 
             if (!ProfilesEqual(currentProfile, updatedProfile))
