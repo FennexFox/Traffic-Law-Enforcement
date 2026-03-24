@@ -42,6 +42,7 @@ namespace Traffic_Law_Enforcement
         private ComponentLookup<CarCurrentLane> m_CurrentLaneData;
         private ComponentLookup<Owner> m_OwnerData;
         private ComponentLookup<CarLane> m_CarLaneData;
+        private ComponentLookup<VehicleTrafficLawProfile> m_ProfileData;
         private ComponentLookup<EdgeLane> m_EdgeLaneData;
         private ComponentLookup<ParkingLane> m_ParkingLaneData;
         private ComponentLookup<GarageLane> m_GarageLaneData;
@@ -78,6 +79,7 @@ namespace Traffic_Law_Enforcement
             m_ParkingLaneData = GetComponentLookup<ParkingLane>(true);
             m_GarageLaneData = GetComponentLookup<GarageLane>(true);
             m_ConnectionLaneData = GetComponentLookup<ConnectionLane>(true);
+            m_ProfileData = GetComponentLookup<VehicleTrafficLawProfile>(true);
             m_TypeLookups = PublicTransportLaneVehicleTypeLookups.Create(this);
             m_CachedVehicleQuery = GetEntityQuery(ComponentType.ReadOnly<Car>(), ComponentType.ReadOnly<CarCurrentLane>());
             RequireForUpdate(m_CarQuery);
@@ -102,6 +104,7 @@ namespace Traffic_Law_Enforcement
             m_ParkingLaneData.Update(this);
             m_GarageLaneData.Update(this);
             m_ConnectionLaneData.Update(this);
+            m_ProfileData.Update(this);
             m_TypeLookups.Update(this);
 
             m_CandidateVehicles.Clear();
@@ -168,7 +171,7 @@ namespace Traffic_Law_Enforcement
         private RoutePenaltySnapshot BuildSnapshot(Entity vehicle, CarCurrentLane currentLane)
         {
             RoutePenaltyProfile profile = default;
-            bool allowedOnPublicTransportLane = PublicTransportLanePolicy.IsAllowedOnPublicTransportLane(vehicle, ref m_TypeLookups);
+            bool allowedOnPublicTransportLane = IsAllowedOnPublicTransportLaneForLogging(vehicle);
             List<string> penaltyTags = new List<string>(MaxPenaltyTags);
             uint hash = 2166136261u;
             int omittedTagCount = 0;
@@ -338,6 +341,22 @@ namespace Traffic_Law_Enforcement
             }
 
             return !allowedOnPublicTransportLane;
+        }
+
+        private bool IsAllowedOnPublicTransportLaneForLogging(Entity vehicle)
+        {
+            if (EmergencyVehiclePolicy.IsEmergencyVehicle(vehicle, ref m_TypeLookups))
+            {
+                return true;
+            }
+
+            if (!m_ProfileData.TryGetComponent(vehicle, out VehicleTrafficLawProfile profile))
+            {
+                return false;
+            }
+
+            return PublicTransportLanePolicy.ModAllowsAccess(
+                profile.m_PublicTransportLaneAccessBits);
         }
 
         private bool ShouldLogReroute(RoutePenaltySnapshot previousSnapshot, RoutePenaltySnapshot currentSnapshot)

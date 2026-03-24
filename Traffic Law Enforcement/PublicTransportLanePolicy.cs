@@ -150,14 +150,22 @@ namespace Traffic_Law_Enforcement
     {
         public const CarFlags PublicTransportLanePermissionMask = CarFlags.UsePublicTransportLanes | CarFlags.PreferPublicTransportLanes;
 
-        public static bool IsAllowedOnPublicTransportLane(Entity vehicle, ref PublicTransportLaneVehicleTypeLookups lookups)
+        public static bool IsAllowedOnPublicTransportLane(
+            Entity vehicle,
+            ref PublicTransportLaneVehicleTypeLookups lookups,
+            ref ComponentLookup<VehicleTrafficLawProfile> profileData)
         {
             if (EmergencyVehiclePolicy.IsEmergencyVehicle(vehicle, ref lookups))
             {
                 return true;
             }
 
-            return HasPublicTransportLanePermissionFlag(vehicle, ref lookups);
+            if (!profileData.TryGetComponent(vehicle, out VehicleTrafficLawProfile profile))
+            {
+                return false;
+            }
+
+            return ModAllowsAccess(profile.m_PublicTransportLaneAccessBits);
         }
 
         public static bool HasPublicTransportLanePermissionFlag(Entity vehicle, ref PublicTransportLaneVehicleTypeLookups lookups)
