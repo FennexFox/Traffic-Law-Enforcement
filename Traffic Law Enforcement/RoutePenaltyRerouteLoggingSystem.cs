@@ -33,6 +33,8 @@ namespace Traffic_Law_Enforcement
         private const int MaxPenaltyTags = 6;
         private const int MaxLogsPerUpdate = 4;
         private const int SnapshotSweepInterval = 2048;
+        private const int MaxPublicTransportLaneDecisionDiagnosticLogsPerUpdate = 8;
+        private int m_PublicTransportLaneDecisionDiagnosticLogsThisUpdate;
 
         private EntityQuery m_CarQuery;
         private EntityQuery m_CurrentLaneChangedQuery;
@@ -42,6 +44,7 @@ namespace Traffic_Law_Enforcement
         private ComponentLookup<CarCurrentLane> m_CurrentLaneData;
         private ComponentLookup<Owner> m_OwnerData;
         private ComponentLookup<CarLane> m_CarLaneData;
+        private ComponentLookup<VehicleTrafficLawProfile> m_ProfileData;
         private ComponentLookup<EdgeLane> m_EdgeLaneData;
         private ComponentLookup<ParkingLane> m_ParkingLaneData;
         private ComponentLookup<GarageLane> m_GarageLaneData;
@@ -50,6 +53,7 @@ namespace Traffic_Law_Enforcement
         private readonly Dictionary<Entity, RoutePenaltySnapshot> m_LastSnapshots = new Dictionary<Entity, RoutePenaltySnapshot>();
         private readonly HashSet<Entity> m_CandidateVehicles = new HashSet<Entity>();
         private int m_UpdateCount;
+        private int m_LastObservedRuntimeWorldGeneration = -1;
 
         protected override void OnCreate()
         {
@@ -78,6 +82,7 @@ namespace Traffic_Law_Enforcement
             m_ParkingLaneData = GetComponentLookup<ParkingLane>(true);
             m_GarageLaneData = GetComponentLookup<GarageLane>(true);
             m_ConnectionLaneData = GetComponentLookup<ConnectionLane>(true);
+            m_ProfileData = GetComponentLookup<VehicleTrafficLawProfile>(true);
             m_TypeLookups = PublicTransportLaneVehicleTypeLookups.Create(this);
             m_CachedVehicleQuery = GetEntityQuery(ComponentType.ReadOnly<Car>(), ComponentType.ReadOnly<CarCurrentLane>());
             RequireForUpdate(m_CarQuery);
@@ -86,7 +91,9 @@ namespace Traffic_Law_Enforcement
         [BurstCompile]
         protected override void OnUpdate()
         {
+            HandleRuntimeWorldReload();
             bool loggingEnabled = EnforcementLoggingPolicy.ShouldLogEstimatedReroutes();
+            m_PublicTransportLaneDecisionDiagnosticLogsThisUpdate = 0;
             if (!Mod.IsEnforcementEnabled)
             {
                 m_LastSnapshots.Clear();
@@ -102,6 +109,7 @@ namespace Traffic_Law_Enforcement
             m_ParkingLaneData.Update(this);
             m_GarageLaneData.Update(this);
             m_ConnectionLaneData.Update(this);
+            m_ProfileData.Update(this);
             m_TypeLookups.Update(this);
 
             m_CandidateVehicles.Clear();
@@ -149,6 +157,25 @@ namespace Traffic_Law_Enforcement
             RerouteLoggingTelemetry.SetState(true, m_LastSnapshots.Count, m_CandidateVehicles.Count, emittedLogs);
         }
 
+        private void HandleRuntimeWorldReload()
+        {
+            int currentGeneration = EnforcementSaveDataSystem.RuntimeWorldGeneration;
+            if (m_LastObservedRuntimeWorldGeneration == currentGeneration)
+            {
+                return;
+            }
+
+            m_LastObservedRuntimeWorldGeneration = currentGeneration;
+
+            m_LastSnapshots.Clear();
+            m_CandidateVehicles.Clear();
+            m_UpdateCount = 0;
+            RerouteLoggingTelemetry.SetState(false, 0, 0, 0);
+
+            Mod.log.Info(
+                $"[SAVELOAD] RoutePenaltyRerouteLoggingSystem runtime reset: generation={currentGeneration}");
+        }
+
         private void CollectCandidateVehicles(EntityQuery query)
         {
             NativeArray<Entity> vehicles = query.ToEntityArray(Allocator.Temp);
@@ -168,15 +195,29 @@ namespace Traffic_Law_Enforcement
         private RoutePenaltySnapshot BuildSnapshot(Entity vehicle, CarCurrentLane currentLane)
         {
             RoutePenaltyProfile profile = default;
-            bool allowedOnPublicTransportLane = PublicTransportLanePolicy.IsAllowedOnPublicTransportLane(vehicle, ref m_TypeLookups);
+            bool hasResolvedPublicTransportLanePolicy =
+                TryResolveAllowedOnPublicTransportLaneForLogging(
+                    vehicle,
+                    out bool allowedOnPublicTransportLane);
             List<string> penaltyTags = new List<string>(MaxPenaltyTags);
             uint hash = 2166136261u;
             int omittedTagCount = 0;
-            bool previousUnauthorizedBusLane = false;
+            bool previousUnauthorizedPublicTransportLane = false;
             Entity previousLane = Entity.Null;
             Entity previousLaneOwner = Entity.Null;
 
-            AppendLaneToSnapshot(currentLane.m_Lane, allowedOnPublicTransportLane, ref previousLane, ref previousLaneOwner, ref previousUnauthorizedBusLane, ref profile, ref hash, penaltyTags, ref omittedTagCount);
+            AppendLaneToSnapshot(
+                vehicle,
+                currentLane.m_Lane,
+                hasResolvedPublicTransportLanePolicy,
+                allowedOnPublicTransportLane,
+                ref previousLane,
+                ref previousLaneOwner,
+                ref previousUnauthorizedPublicTransportLane,
+                ref profile,
+                ref hash,
+                penaltyTags,
+                ref omittedTagCount);
 
             if (m_NavigationLaneData.TryGetBuffer(vehicle, out DynamicBuffer<CarNavigationLane> navigationLanes))
             {
@@ -193,14 +234,41 @@ namespace Traffic_Law_Enforcement
                         continue;
                     }
 
-                    AppendLaneToSnapshot(nextLane, allowedOnPublicTransportLane, ref previousLane, ref previousLaneOwner, ref previousUnauthorizedBusLane, ref profile, ref hash, penaltyTags, ref omittedTagCount);
+                    AppendLaneToSnapshot(
+                        vehicle,
+                        nextLane,
+                        hasResolvedPublicTransportLanePolicy,
+                        allowedOnPublicTransportLane,
+                        ref previousLane,
+                        ref previousLaneOwner,
+                        ref previousUnauthorizedPublicTransportLane,
+                        ref profile,
+                        ref hash,
+                        penaltyTags,
+                        ref omittedTagCount);
                 }
             }
 
-            return new RoutePenaltySnapshot(hash, profile, BuildBreakdown(profile), BuildTagSummary(penaltyTags, omittedTagCount));
+            return new RoutePenaltySnapshot(
+                hash,
+                profile,
+                BuildBreakdown(profile),
+                BuildTagSummary(penaltyTags, omittedTagCount),
+                hasResolvedPublicTransportLanePolicy);
         }
 
-        private void AppendLaneToSnapshot(Entity lane, bool allowedOnPublicTransportLane, ref Entity previousLane, ref Entity previousLaneOwner, ref bool previousUnauthorizedBusLane, ref RoutePenaltyProfile profile, ref uint hash, List<string> penaltyTags, ref int omittedTagCount)
+        private void AppendLaneToSnapshot(
+            Entity vehicle,
+            Entity lane,
+            bool hasResolvedPublicTransportLanePolicy,
+            bool allowedOnPublicTransportLane,
+            ref Entity previousLane,
+            ref Entity previousLaneOwner,
+            ref bool previousUnauthorizedPublicTransportLane,
+            ref RoutePenaltyProfile profile,
+            ref uint hash,
+            List<string> penaltyTags,
+            ref int omittedTagCount)
         {
             if (lane == Entity.Null)
             {
@@ -223,17 +291,109 @@ namespace Traffic_Law_Enforcement
                 }
             }
 
-            bool unauthorizedBusLane = IsUnauthorizedPublicTransportLane(lane, allowedOnPublicTransportLane);
-            if (unauthorizedBusLane && !previousUnauthorizedBusLane)
+            bool unauthorizedPublicTransportLane =
+                hasResolvedPublicTransportLanePolicy &&
+                IsunauthorizedPublicTransportLane(lane, allowedOnPublicTransportLane);
+
+            MaybeLogPublicTransportLaneDecisionDiagnostic(
+                vehicle,
+                lane,
+                hasResolvedPublicTransportLanePolicy,
+                allowedOnPublicTransportLane,
+                unauthorizedPublicTransportLane);
+
+            if (unauthorizedPublicTransportLane && !previousUnauthorizedPublicTransportLane)
             {
                 profile.PublicTransportLaneSegments += 1;
-                AppendPenaltyTag(penaltyTags, DescribeUnauthorizedPublicTransportLaneTag(lane), ref omittedTagCount);
+                AppendPenaltyTag(penaltyTags, DescribeunauthorizedPublicTransportLaneTag(lane), ref omittedTagCount);
             }
 
-            hash = HashLane(hash, lane, unauthorizedBusLane);
+            hash = HashLane(hash, lane, unauthorizedPublicTransportLane);
             previousLane = lane;
             previousLaneOwner = laneOwner;
-            previousUnauthorizedBusLane = unauthorizedBusLane;
+            previousUnauthorizedPublicTransportLane = unauthorizedPublicTransportLane;
+        }
+
+        private void MaybeLogPublicTransportLaneDecisionDiagnostic(
+            Entity vehicle,
+            Entity lane,
+            bool hasResolvedPublicTransportLanePolicy,
+            bool allowedOnPublicTransportLane,
+            bool unauthorizedPublicTransportLane)
+        {
+            if (!EnforcementLoggingPolicy.ShouldLogPathfindingPenaltyDiagnostics())
+            {
+                return;
+            }
+
+            if (m_PublicTransportLaneDecisionDiagnosticLogsThisUpdate >=
+                MaxPublicTransportLaneDecisionDiagnosticLogsPerUpdate)
+            {
+                return;
+            }
+
+            if (!m_CarLaneData.TryGetComponent(lane, out CarLane laneData))
+            {
+                return;
+            }
+
+            bool publicOnly = (laneData.m_Flags & Game.Net.CarLaneFlags.PublicOnly) != 0;
+            if (!publicOnly)
+            {
+                return;
+            }
+
+            if (hasResolvedPublicTransportLanePolicy && allowedOnPublicTransportLane)
+            {
+                return;
+            }
+
+            bool hasProfile =
+                m_ProfileData.TryGetComponent(vehicle, out VehicleTrafficLawProfile vehicleProfile);
+
+            bool emergency =
+                EmergencyVehiclePolicy.IsEmergencyVehicle(vehicle, ref m_TypeLookups);
+
+            bool engineHasFlag =
+                PublicTransportLanePolicy.EngineHasPublicTransportLaneFlag(
+                    vehicle,
+                    ref m_TypeLookups);
+
+            string vanillaAllows = hasProfile
+                ? PublicTransportLanePolicy.VanillaAllowsAccess(
+                    vehicleProfile.m_PublicTransportLaneAccessBits).ToString()
+                : "n/a";
+
+            string modAllows = hasProfile
+                ? PublicTransportLanePolicy.ModAllowsAccess(
+                    vehicleProfile.m_PublicTransportLaneAccessBits).ToString()
+                : "n/a";
+
+            string permissionChangedByMod = hasProfile
+                ? PublicTransportLanePolicy.PermissionChangedByMod(
+                    vehicleProfile.m_PublicTransportLaneAccessBits).ToString()
+                : "n/a";
+
+            string accessBits = hasProfile
+                ? vehicleProfile.m_PublicTransportLaneAccessBits.ToString()
+                : "n/a";
+
+            string role =
+                PublicTransportLanePolicy.DescribeVehicleRole(vehicle, ref m_TypeLookups);
+
+            string laneKind = DescribeLaneKind(lane);
+
+            string message =
+                $"PT_ROUTE_DIAG: vehicle={vehicle}, role={role}, lane={lane}, laneKind={laneKind}, " +
+                $"publicOnly={publicOnly}, hasResolvedPolicy={hasResolvedPublicTransportLanePolicy}, " +
+                $"hasProfile={hasProfile}, allowedOnPublicTransportLane={allowedOnPublicTransportLane}, " +
+                $"unauthorizedPublicTransportLane={unauthorizedPublicTransportLane}, engineHasFlag={engineHasFlag}, " +
+                $"emergency={emergency}, vanillaAllows={vanillaAllows}, modAllows={modAllows}, " +
+                $"permissionChangedByMod={permissionChangedByMod}, accessBits={accessBits}";
+
+            EnforcementTelemetry.RecordEvent(message);
+            Mod.log.Info(message);
+            m_PublicTransportLaneDecisionDiagnosticLogsThisUpdate += 1;
         }
 
         private bool TryGetMidBlockPenaltyTag(Entity sourceLane, Entity sourceOwner, Entity targetLane, Entity targetOwner, out string tag)
@@ -283,6 +443,29 @@ namespace Traffic_Law_Enforcement
             return TryGetOutboundAccessPenaltyTag(sourceLane, targetLane, out tag);
         }
 
+        private bool TryResolveAllowedOnPublicTransportLaneForLogging(
+            Entity vehicle,
+            out bool allowedOnPublicTransportLane)
+        {
+            if (EmergencyVehiclePolicy.IsEmergencyVehicle(vehicle, ref m_TypeLookups))
+            {
+                allowedOnPublicTransportLane = true;
+                return true;
+            }
+
+            if (!m_ProfileData.TryGetComponent(vehicle, out VehicleTrafficLawProfile profile))
+            {
+                allowedOnPublicTransportLane = false;
+                return false;
+            }
+
+            allowedOnPublicTransportLane =
+                PublicTransportLanePolicy.ModAllowsAccess(
+                    profile.m_PublicTransportLaneAccessBits);
+
+            return true;
+        }
+
         private bool TryGetOutboundAccessPenaltyTag(Entity sourceLane, Entity targetLane, out string tag)
         {
             tag = null;
@@ -325,7 +508,7 @@ namespace Traffic_Law_Enforcement
             return true;
         }
 
-        private bool IsUnauthorizedPublicTransportLane(Entity lane, bool allowedOnPublicTransportLane)
+        private bool IsunauthorizedPublicTransportLane(Entity lane, bool allowedOnPublicTransportLane)
         {
             if (lane == Entity.Null || !m_CarLaneData.TryGetComponent(lane, out CarLane laneData))
             {
@@ -340,28 +523,101 @@ namespace Traffic_Law_Enforcement
             return !allowedOnPublicTransportLane;
         }
 
-        private bool ShouldLogReroute(RoutePenaltySnapshot previousSnapshot, RoutePenaltySnapshot currentSnapshot)
+        private bool ShouldLogReroute(
+            RoutePenaltySnapshot previousSnapshot,
+            RoutePenaltySnapshot currentSnapshot)
         {
+            bool allowPublicTransportLaneComparison =
+                previousSnapshot.PublicTransportLanePolicyResolved &&
+                currentSnapshot.PublicTransportLanePolicyResolved;
+
+            int previousComparablePenalty =
+                CalculateComparableTotalPenalty(
+                    previousSnapshot,
+                    allowPublicTransportLaneComparison);
+
+            int currentComparablePenalty =
+                CalculateComparableTotalPenalty(
+                    currentSnapshot,
+                    allowPublicTransportLaneComparison);
+
             return previousSnapshot.RouteHash != currentSnapshot.RouteHash &&
-                previousSnapshot.TotalPenalty > currentSnapshot.TotalPenalty &&
-                previousSnapshot.TotalPenalty > 0;
+                previousComparablePenalty > currentComparablePenalty &&
+                previousComparablePenalty > 0;
         }
 
-        private void LogReroute(Entity vehicle, RoutePenaltySnapshot previousSnapshot, RoutePenaltySnapshot currentSnapshot)
+        private void LogReroute(
+            Entity vehicle,
+            RoutePenaltySnapshot previousSnapshot,
+            RoutePenaltySnapshot currentSnapshot)
         {
-            int avoidedPenalty = previousSnapshot.TotalPenalty - currentSnapshot.TotalPenalty;
+            bool allowPublicTransportLaneComparison =
+                previousSnapshot.PublicTransportLanePolicyResolved &&
+                currentSnapshot.PublicTransportLanePolicyResolved;
+
+            int previousComparablePenalty =
+                CalculateComparableTotalPenalty(
+                    previousSnapshot,
+                    allowPublicTransportLaneComparison);
+
+            int currentComparablePenalty =
+                CalculateComparableTotalPenalty(
+                    currentSnapshot,
+                    allowPublicTransportLaneComparison);
+
+            int avoidedPenalty = previousComparablePenalty - currentComparablePenalty;
             string role = PublicTransportLanePolicy.DescribeVehicleRole(vehicle, ref m_TypeLookups);
-            string message = $"Pathfinding reroute (estimated): vehicle={vehicle}, role={role}, avoidedPenalty={avoidedPenalty}, fromPenalty={previousSnapshot.TotalPenalty} [{previousSnapshot.Breakdown}], toPenalty={currentSnapshot.TotalPenalty} [{currentSnapshot.Breakdown}], fromTags={previousSnapshot.Tags}, toTags={currentSnapshot.Tags}";
+
+            string previousComparableBreakdown =
+                BuildComparableBreakdown(
+                    previousSnapshot,
+                    allowPublicTransportLaneComparison);
+
+            string currentComparableBreakdown =
+                BuildComparableBreakdown(
+                    currentSnapshot,
+                    allowPublicTransportLaneComparison);
+
+            string comparisonMode = allowPublicTransportLaneComparison
+                ? "full"
+                : "excluding-unresolved-pt";
+
+            string message =
+                $"Pathfinding reroute (estimated): vehicle={vehicle}, role={role}, comparisonMode={comparisonMode}, " +
+                $"avoidedPenalty={avoidedPenalty}, " +
+                $"fromPenalty={previousComparablePenalty} [{previousComparableBreakdown}], " +
+                $"toPenalty={currentComparablePenalty} [{currentComparableBreakdown}], " +
+                $"fromTags={previousSnapshot.Tags}, toTags={currentSnapshot.Tags}";
+
             EnforcementTelemetry.RecordEvent(message);
             Mod.log.Info(message);
         }
 
-        private static void RecordRerouteTelemetry(RoutePenaltySnapshot previousSnapshot, RoutePenaltySnapshot currentSnapshot)
+        private static void RecordRerouteTelemetry(
+            RoutePenaltySnapshot previousSnapshot,
+            RoutePenaltySnapshot currentSnapshot)
         {
-            bool avoidedPublicTransportLanePenalty = previousSnapshot.Profile.PublicTransportLaneSegments > currentSnapshot.Profile.PublicTransportLaneSegments;
-            bool avoidedMidBlockPenalty = previousSnapshot.Profile.MidBlockTransitions > currentSnapshot.Profile.MidBlockTransitions;
-            bool avoidedIntersectionPenalty = previousSnapshot.Profile.IntersectionTransitions > currentSnapshot.Profile.IntersectionTransitions;
-            EnforcementPolicyImpactService.RecordAvoidedReroute(avoidedPublicTransportLanePenalty, avoidedMidBlockPenalty, avoidedIntersectionPenalty);
+            bool allowPublicTransportLaneComparison =
+                previousSnapshot.PublicTransportLanePolicyResolved &&
+                currentSnapshot.PublicTransportLanePolicyResolved;
+
+            bool avoidedPublicTransportLanePenalty =
+                allowPublicTransportLaneComparison &&
+                previousSnapshot.Profile.PublicTransportLaneSegments >
+                currentSnapshot.Profile.PublicTransportLaneSegments;
+
+            bool avoidedMidBlockPenalty =
+                previousSnapshot.Profile.MidBlockTransitions >
+                currentSnapshot.Profile.MidBlockTransitions;
+
+            bool avoidedIntersectionPenalty =
+                previousSnapshot.Profile.IntersectionTransitions >
+                currentSnapshot.Profile.IntersectionTransitions;
+
+            EnforcementPolicyImpactService.RecordAvoidedReroute(
+                avoidedPublicTransportLanePenalty,
+                avoidedMidBlockPenalty,
+                avoidedIntersectionPenalty);
         }
 
         private void SweepInactiveSnapshots()
@@ -403,7 +659,7 @@ namespace Traffic_Law_Enforcement
             return Entity.Null;
         }
 
-        private string DescribeUnauthorizedPublicTransportLaneTag(Entity lane)
+        private string DescribeunauthorizedPublicTransportLaneTag(Entity lane)
         {
             return DescribeLaneKind(lane) + "(public-only, illegal)";
         }
@@ -539,13 +795,13 @@ namespace Traffic_Law_Enforcement
             return summary;
         }
 
-        private static uint HashLane(uint currentHash, Entity lane, bool unauthorizedBusLane)
+        private static uint HashLane(uint currentHash, Entity lane, bool unauthorizedPublicTransportLane)
         {
             unchecked
             {
                 currentHash ^= (uint)lane.Index;
                 currentHash *= 16777619u;
-                currentHash ^= unauthorizedBusLane ? 0xBADA55u : 0u;
+                currentHash ^= unauthorizedPublicTransportLane ? 0xBADA55u : 0u;
                 currentHash *= 16777619u;
                 return currentHash;
             }
@@ -570,6 +826,34 @@ namespace Traffic_Law_Enforcement
             }
 
             return parts.Count == 0 ? "none" : string.Join(", ", parts.ToArray());
+        }
+
+        private static int CalculateComparableTotalPenalty(
+            RoutePenaltySnapshot snapshot,
+            bool allowPublicTransportLaneComparison)
+        {
+            RoutePenaltyProfile comparableProfile = snapshot.Profile;
+
+            if (!allowPublicTransportLaneComparison)
+            {
+                comparableProfile.PublicTransportLaneSegments = 0;
+            }
+
+            return CalculateTotalPenalty(comparableProfile);
+        }
+
+        private static string BuildComparableBreakdown(
+            RoutePenaltySnapshot snapshot,
+            bool allowPublicTransportLaneComparison)
+        {
+            RoutePenaltyProfile comparableProfile = snapshot.Profile;
+
+            if (!allowPublicTransportLaneComparison)
+            {
+                comparableProfile.PublicTransportLaneSegments = 0;
+            }
+
+            return BuildBreakdown(comparableProfile);
         }
 
         private static string FormatMovement(LaneMovement movement)
@@ -646,14 +930,21 @@ namespace Traffic_Law_Enforcement
             public readonly int TotalPenalty;
             public readonly string Breakdown;
             public readonly string Tags;
+            public readonly bool PublicTransportLanePolicyResolved;
 
-            public RoutePenaltySnapshot(uint routeHash, RoutePenaltyProfile profile, string breakdown, string tags)
+            public RoutePenaltySnapshot(
+                uint routeHash,
+                RoutePenaltyProfile profile,
+                string breakdown,
+                string tags,
+                bool publicTransportLanePolicyResolved)
             {
                 RouteHash = routeHash;
                 Profile = profile;
                 TotalPenalty = CalculateTotalPenalty(profile);
                 Breakdown = breakdown;
                 Tags = tags;
+                PublicTransportLanePolicyResolved = publicTransportLanePolicyResolved;
             }
         }
 

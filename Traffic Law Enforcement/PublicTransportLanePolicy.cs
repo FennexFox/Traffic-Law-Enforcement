@@ -150,22 +150,30 @@ namespace Traffic_Law_Enforcement
     {
         public const CarFlags PublicTransportLanePermissionMask = CarFlags.UsePublicTransportLanes | CarFlags.PreferPublicTransportLanes;
 
-        public static bool IsAllowedOnPublicTransportLane(Entity vehicle, ref PublicTransportLaneVehicleTypeLookups lookups)
+        public static bool IsAllowedOnPublicTransportLane(
+            Entity vehicle,
+            ref PublicTransportLaneVehicleTypeLookups lookups,
+            ref ComponentLookup<VehicleTrafficLawProfile> profileData)
         {
             if (EmergencyVehiclePolicy.IsEmergencyVehicle(vehicle, ref lookups))
             {
                 return true;
             }
 
-            return HasPublicTransportLanePermissionFlag(vehicle, ref lookups);
+            if (!profileData.TryGetComponent(vehicle, out VehicleTrafficLawProfile profile))
+            {
+                return false;
+            }
+
+            return ModAllowsAccess(profile.m_PublicTransportLaneAccessBits);
         }
 
-        public static bool HasPublicTransportLanePermissionFlag(Entity vehicle, ref PublicTransportLaneVehicleTypeLookups lookups)
+        public static bool EngineHasPublicTransportLaneFlag(Entity vehicle, ref PublicTransportLaneVehicleTypeLookups lookups)
         {
-            return lookups.CarData.TryGetComponent(vehicle, out Car car) && HasPublicTransportLanePermissionFlag(car);
+            return lookups.CarData.TryGetComponent(vehicle, out Car car) && EngineHasPublicTransportLaneFlag(car);
         }
 
-        public static bool HasPublicTransportLanePermissionFlag(Car car)
+        public static bool EngineHasPublicTransportLaneFlag(Car car)
         {
             return (car.m_Flags & CarFlags.UsePublicTransportLanes) != 0;
         }
@@ -175,65 +183,180 @@ namespace Traffic_Law_Enforcement
             return settings.GetPermissionSettingsMask();
         }
 
-        public static bool TryGetDesiredPermissionState(Entity vehicle, Car car, EnforcementGameplaySettingsState settings, ref PublicTransportLaneVehicleTypeLookups lookups, out bool shouldTrack, out CarFlags desiredMask)
+        public static PublicTransportLaneAccessBits BuildAccessBits(
+            Entity vehicle,
+            Car car,
+            EnforcementGameplaySettingsState settings,
+            ref PublicTransportLaneVehicleTypeLookups lookups,
+            out bool shouldTrack)
         {
             shouldTrack = false;
-            desiredMask = 0;
 
             bool emergency = EmergencyVehiclePolicy.IsEmergencyVehicle(car);
-            PublicTransportLaneVehicleCategory authorizedCategories = GetVanillaAuthorizedCategories(vehicle, ref lookups);
-            PublicTransportLaneFlagGrantExperimentRole additionalRole = GetFlagGrantExperimentRole(vehicle, ref lookups);
-            bool recognizedRole = authorizedCategories != PublicTransportLaneVehicleCategory.None || additionalRole != PublicTransportLaneFlagGrantExperimentRole.None;
+            PublicTransportLaneVehicleCategory authorizedCategories =
+                GetVanillaAuthorizedCategories(vehicle, ref lookups);
+            PublicTransportLaneFlagGrantExperimentRole additionalRole =
+                GetFlagGrantExperimentRole(vehicle, ref lookups);
+
+            bool recognizedRole =
+                authorizedCategories != PublicTransportLaneVehicleCategory.None ||
+                additionalRole != PublicTransportLaneFlagGrantExperimentRole.None;
 
             if (!recognizedRole && !emergency)
             {
-                return false;
+                return PublicTransportLaneAccessBits.None;
             }
 
             shouldTrack = true;
-            bool allowAuthorized = settings.AllowsPublicTransportLaneCategories(authorizedCategories);
-            bool allowAdditional = settings.AllowsAdditionalPublicTransportLaneRole(additionalRole);
-            bool allow = emergency || allowAuthorized || allowAdditional;
-            desiredMask = GetDesiredPermissionMask(emergency, authorizedCategories, additionalRole, allowAdditional, allow);
-            return true;
-        }
 
-        private static CarFlags GetDesiredPermissionMask(
-            bool emergency,
-            PublicTransportLaneVehicleCategory authorizedCategories,
-            PublicTransportLaneFlagGrantExperimentRole additionalRole,
-            bool allowAdditional,
-            bool allow)
-        {
-            if (!allow)
-            {
-                return 0;
-            }
-
-            if (emergency)
-            {
-                return PublicTransportLanePermissionMask;
-            }
+            bool vanillaAllows =
+                emergency ||
+                authorizedCategories != PublicTransportLaneVehicleCategory.None;
 
             bool isRoadPublicTransport =
                 (authorizedCategories & PublicTransportLaneVehicleCategory.RoadPublicTransportVehicle) != 0;
 
+            bool vanillaPrefers =
+                emergency || isRoadPublicTransport;
+
+            bool modAllowsAuthorized =
+                settings.AllowsPublicTransportLaneCategories(authorizedCategories);
+
+            bool modAllowsAdditional =
+                settings.AllowsAdditionalPublicTransportLaneRole(additionalRole);
+
+            bool modAllows =
+                emergency ||
+                modAllowsAuthorized ||
+                modAllowsAdditional;
+
+            bool modPrefers =
+                emergency || isRoadPublicTransport;
+
+            PublicTransportLaneAccessBits bits = PublicTransportLaneAccessBits.None;
+
+            if (vanillaAllows)
+            {
+                bits |= PublicTransportLaneAccessBits.VanillaAllowsAccess;
+            }
+
+            if (vanillaPrefers)
+            {
+                bits |= PublicTransportLaneAccessBits.VanillaPrefersLanes;
+            }
+
+            if (modAllows)
+            {
+                bits |= PublicTransportLaneAccessBits.ModAllowsAccess;
+            }
+
+            if (modPrefers)
+            {
+                bits |= PublicTransportLaneAccessBits.ModPrefersLanes;
+            }
+
             if (isRoadPublicTransport)
             {
-                return PublicTransportLanePermissionMask;
+                bits |= PublicTransportLaneAccessBits.IsRoadPublicTransport;
             }
 
-            if (authorizedCategories != PublicTransportLaneVehicleCategory.None)
+            bool permissionChangedByMod =
+                vanillaAllows != modAllows ||
+                vanillaPrefers != modPrefers;
+
+            if (permissionChangedByMod)
             {
-                return CarFlags.UsePublicTransportLanes;
+                bits |= PublicTransportLaneAccessBits.PermissionChangedByMod;
             }
 
-            if (additionalRole != PublicTransportLaneFlagGrantExperimentRole.None && allowAdditional)
-            {
-                return CarFlags.UsePublicTransportLanes;
-            }
+            return bits;
+        }
 
-            return 0;
+        public static bool HasBit(
+            PublicTransportLaneAccessBits bits,
+            PublicTransportLaneAccessBits flag)
+        {
+            return (bits & flag) != 0;
+        }
+
+        public static bool VanillaAllowsAccess(PublicTransportLaneAccessBits bits)
+        {
+            return HasBit(bits, PublicTransportLaneAccessBits.VanillaAllowsAccess);
+        }
+
+        public static bool ModAllowsAccess(PublicTransportLaneAccessBits bits)
+        {
+            return HasBit(bits, PublicTransportLaneAccessBits.ModAllowsAccess);
+        }
+
+        public static bool VanillaPrefersLanes(PublicTransportLaneAccessBits bits)
+        {
+            return HasBit(bits, PublicTransportLaneAccessBits.VanillaPrefersLanes);
+        }
+
+        public static bool ModPrefersLanes(PublicTransportLaneAccessBits bits)
+        {
+            return HasBit(bits, PublicTransportLaneAccessBits.ModPrefersLanes);
+        }
+
+        public static bool IsRoadPublicTransport(PublicTransportLaneAccessBits bits)
+        {
+            return HasBit(bits, PublicTransportLaneAccessBits.IsRoadPublicTransport);
+        }
+
+        public static bool PermissionChangedByMod(PublicTransportLaneAccessBits bits)
+        {
+            return HasBit(bits, PublicTransportLaneAccessBits.PermissionChangedByMod);
+        }
+
+        public static bool IsType1(PublicTransportLaneAccessBits bits)
+        {
+            return VanillaAllowsAccess(bits) && ModAllowsAccess(bits);
+        }
+
+        public static bool IsType2(PublicTransportLaneAccessBits bits)
+        {
+            return VanillaAllowsAccess(bits) && !ModAllowsAccess(bits);
+        }
+
+        public static bool IsType3(PublicTransportLaneAccessBits bits)
+        {
+            return !VanillaAllowsAccess(bits) && ModAllowsAccess(bits);
+        }
+
+        public static bool IsType4(PublicTransportLaneAccessBits bits)
+        {
+            return !VanillaAllowsAccess(bits) && !ModAllowsAccess(bits);
+        }
+
+        public static bool ModAllowsPublicTransportLane(
+            VehicleTrafficLawProfile profile)
+        {
+            return ModAllowsAccess(profile.m_PublicTransportLaneAccessBits);
+        }
+
+        public static bool VanillaAllowsPublicTransportLane(
+            VehicleTrafficLawProfile profile)
+        {
+            return VanillaAllowsAccess(profile.m_PublicTransportLaneAccessBits);
+        }
+
+        public static bool TryGetDesiredPermissionState(
+            Entity vehicle,
+            Car car,
+            EnforcementGameplaySettingsState settings,
+            ref PublicTransportLaneVehicleTypeLookups lookups,
+            out bool shouldTrack,
+            out PublicTransportLaneAccessBits accessBits)
+        {
+            accessBits = BuildAccessBits(
+                vehicle,
+                car,
+                settings,
+                ref lookups,
+                out shouldTrack);
+
+            return shouldTrack;
         }
 
         private static string GetRoleDisplayNameEnglish(PublicTransportLaneFlagGrantExperimentRole role)

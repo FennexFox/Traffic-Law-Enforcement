@@ -33,9 +33,11 @@ namespace Traffic_Law_Enforcement
 
             EnforcementGameTime.Reset();
 
+            KeybindingPersistenceGuardPatches.Apply();
             m_Setting = new Setting(this);
             Settings = m_Setting;
             AssetDatabase.global.LoadSettings(nameof(Traffic_Law_Enforcement), m_Setting, new Setting(this));
+            KeybindingPersistenceGuardPatches.CaptureCurrentBindings();
             m_Setting.RegisterInOptionsUI();
             RegisterTextLocales();
             BudgetUIPatches.Apply();
@@ -43,6 +45,7 @@ namespace Traffic_Law_Enforcement
             IntersectionMovementPathfindPatches.Apply();
             IntersectionMovementPathfindReflectionPatches.Apply();
             updateSystem.UpdateAfter<EnforcementSaveDataSystem, EnforcementGameTimeSystem>(SystemUpdatePhase.GameSimulation);
+            updateSystem.UpdateBefore<EnforcementSaveDataSystem, VehicleTrafficLawProfileSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateBefore<VehicleTrafficLawProfileSystem, PublicTransportLanePermissionSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateBefore<VehicleTrafficLawProfileSystem, CarNavigationSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateBefore<PathfindingMoneyPenaltySystem, CarNavigationSystem>(SystemUpdatePhase.GameSimulation);
@@ -75,6 +78,7 @@ namespace Traffic_Law_Enforcement
             VehicleUtilsPatches.Remove();
             IntersectionMovementPathfindPatches.Remove();
             IntersectionMovementPathfindReflectionPatches.Remove();
+            KeybindingPersistenceGuardPatches.Remove();
             if (m_Setting != null)
             {
                 m_Setting.UnregisterInOptionsUI();
@@ -108,7 +112,7 @@ namespace Traffic_Law_Enforcement
 
             foreach (string filePath in files)
             {
-                string localeId = Path.GetFileNameWithoutExtension(filePath);
+                string localeId = NormalizeLocaleId(Path.GetFileNameWithoutExtension(filePath));
 
                 if (string.Equals(localeId, "en-US", StringComparison.OrdinalIgnoreCase))
                 {
@@ -119,7 +123,7 @@ namespace Traffic_Law_Enforcement
 
             foreach (string filePath in files)
             {
-                string localeId = Path.GetFileNameWithoutExtension(filePath);
+                string localeId = NormalizeLocaleId(Path.GetFileNameWithoutExtension(filePath));
                 Dictionary<string, string> entries = PropertiesLocaleSource.LoadKeyValueFile(filePath);
 
                 ValidateTextLocaleFile(localeId, entries, englishEntries, keyMap);
@@ -133,6 +137,21 @@ namespace Traffic_Law_Enforcement
 
                 localizationManager.AddSource(localeId, new PropertiesLocaleSource(filePath, keyMap));
                 log.Info($"Registered locale {localeId} from {Path.GetFileName(filePath)}");
+            }
+        }
+
+        private static string NormalizeLocaleId(string localeId)
+        {
+            switch (localeId)
+            {
+                case "zh-CN":
+                    return "zh-HANS";
+
+                case "zh-TW":
+                    return "zh-HANT";
+
+                default:
+                    return localeId;
             }
         }
 
@@ -151,6 +170,56 @@ namespace Traffic_Law_Enforcement
                 case "ko-KR":
                     localizedName = "한국어";
                     systemLanguage = SystemLanguage.Korean;
+                    return true;
+
+                case "de-DE":
+                    localizedName = "Deutsch";
+                    systemLanguage = SystemLanguage.German;
+                    return true;
+
+                case "es-ES":
+                    localizedName = "Español";
+                    systemLanguage = SystemLanguage.Spanish;
+                    return true;
+
+                case "fr-FR":
+                    localizedName = "Français";
+                    systemLanguage = SystemLanguage.French;
+                    return true;
+
+                case "it-IT":
+                    localizedName = "Italiano";
+                    systemLanguage = SystemLanguage.Italian;
+                    return true;
+
+                case "ja-JP":
+                    localizedName = "日本語";
+                    systemLanguage = SystemLanguage.Japanese;
+                    return true;
+
+                case "pl-PL":
+                    localizedName = "Polski";
+                    systemLanguage = SystemLanguage.Polish;
+                    return true;
+
+                case "pt-BR":
+                    localizedName = "Português (Brasil)";
+                    systemLanguage = SystemLanguage.Portuguese;
+                    return true;
+
+                case "ru-RU":
+                    localizedName = "Русский";
+                    systemLanguage = SystemLanguage.Russian;
+                    return true;
+
+                case "zh-HANS":
+                    localizedName = "简体中文";
+                    systemLanguage = SystemLanguage.ChineseSimplified;
+                    return true;
+
+                case "zh-HANT":
+                    localizedName = "繁體中文";
+                    systemLanguage = SystemLanguage.ChineseTraditional;
                     return true;
 
                 default:
