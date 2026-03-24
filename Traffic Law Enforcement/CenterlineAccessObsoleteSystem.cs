@@ -182,7 +182,7 @@ namespace Traffic_Law_Enforcement
                 if (!TryGetFirstPlannedAccessTransition(currentLane.m_Lane, navigationLanes, out Entity sourceLane, out Entity targetLane, out int transitionIndex, out string transitionKind))
                 {
                     ClearRepeatInvalidation(vehicle);
-                                        if (!ShouldSuppressObservedSnapshot(vehicle, currentLane.m_Lane, Entity.Null, Entity.Null, -1, EvaluationNoAccessTransition, TransitionFamilyNone))
+                    if (!ShouldSuppressObservedSnapshot(vehicle, currentLane.m_Lane, Entity.Null, Entity.Null, -1, EvaluationNoAccessTransition, TransitionFamilyNone))
                     {
                         RecordObservedSnapshot(vehicle, currentLane.m_Lane, Entity.Null, Entity.Null, -1, EvaluationNoAccessTransition, TransitionFamilyNone);
                     }
@@ -263,10 +263,15 @@ namespace Traffic_Law_Enforcement
 
         private void CollectCandidateVehicles(EntityQuery query)
         {
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
             NativeArray<Entity> vehicles = query.ToEntityArray(Allocator.Temp);
             try
             {
-                for (int index = 0; index < vehicles.Length; index++)
+                for (int index = 0; index < vehicles.Length; index += 1)
                 {
                     m_CandidateVehicles.Add(vehicles[index]);
                 }
