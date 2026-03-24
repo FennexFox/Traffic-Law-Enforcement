@@ -333,8 +333,6 @@ namespace Traffic_Law_Enforcement
             string currentOwnerChain = DescribeOwnerChain(currentLane);
             string sourceOwnerChain = DescribeOwnerChain(sourceLane);
             string targetOwnerChain = DescribeOwnerChain(targetLane);
-            Entity accessLane = IsAccessOrigin(sourceLane) ? sourceLane : targetLane;
-            Entity roadLane = accessLane == sourceLane ? targetLane : sourceLane;
             string signature = $"{transitionKind}|{currentLaneShape}|{sourceLaneShape}|{targetLaneShape}|{currentOwnerChain}|{sourceOwnerChain}|{targetOwnerChain}";
             if (!m_StructureSampleSignatures.Add(signature))
             {
