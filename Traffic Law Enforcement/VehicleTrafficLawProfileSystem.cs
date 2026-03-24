@@ -14,6 +14,7 @@ namespace Traffic_Law_Enforcement
         private ComponentLookup<Car> m_CarData;
         private ComponentLookup<VehicleTrafficLawProfile> m_ProfileData;
         private ComponentLookup<PersistedPublicTransportLaneAccessState> m_PersistedAccessStateData;
+        private EntityQuery m_ProfileStateQuery;
         private EntityQuery m_PersistedWithoutProfileQuery;
         private EntityQuery m_PersistedStateQuery;
         private NativeList<Entity> m_PendingRefreshVehicles;
@@ -56,6 +57,14 @@ namespace Traffic_Law_Enforcement
                 {
                     ComponentType.ReadOnly<Car>(),
                     ComponentType.ReadOnly<PersistedPublicTransportLaneAccessState>(),
+                },
+            });
+            m_ProfileStateQuery = GetEntityQuery(new EntityQueryDesc
+            {
+                All = new[]
+                {
+                    ComponentType.ReadOnly<Car>(),
+                    ComponentType.ReadOnly<VehicleTrafficLawProfile>(),
                 },
             });
             RequireForUpdate(m_AllCarsQuery);
@@ -124,6 +133,10 @@ namespace Traffic_Law_Enforcement
             m_LastObservedRuntimeWorldGeneration = currentGeneration;
 
             ClearPendingRefresh();
+            if (!m_ProfileStateQuery.IsEmptyIgnoreFilter)
+            {
+                EntityManager.RemoveComponent<VehicleTrafficLawProfile>(m_ProfileStateQuery);
+            }
             m_HasEvaluated = false;
             m_LastPermissionSettingsMask = 0;
 
