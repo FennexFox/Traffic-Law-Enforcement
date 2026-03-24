@@ -141,16 +141,26 @@ namespace Traffic_Law_Enforcement
             EnforcementGameplaySettingsState settings,
             int permissionSettingsMask)
         {
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
             NativeArray<Entity> vehicles = query.ToEntityArray(Allocator.Temp);
-            NativeArray<Car> cars = query.ToComponentDataArray<Car>(Allocator.Temp);
 
             try
             {
                 for (int index = 0; index < vehicles.Length; index += 1)
                 {
+                    Entity vehicle = vehicles[index];
+                    if (!m_CarData.TryGetComponent(vehicle, out Car car))
+                    {
+                        continue;
+                    }
+
                     EvaluateVehicle(
-                        vehicles[index],
-                        cars[index],
+                        vehicle,
+                        car,
                         settings,
                         permissionSettingsMask);
                 }
@@ -158,7 +168,6 @@ namespace Traffic_Law_Enforcement
             finally
             {
                 vehicles.Dispose();
-                cars.Dispose();
             }
         }
 
