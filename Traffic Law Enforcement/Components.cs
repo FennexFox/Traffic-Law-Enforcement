@@ -33,6 +33,7 @@ namespace Traffic_Law_Enforcement
     {
         public CarFlags m_OriginalPublicTransportLaneFlags;
         public byte m_EmergencyActive;
+        public byte m_ImmediateEntryGraceConsumed;
     }
 
     public struct PublicTransportLaneType3UsageState : IComponentData

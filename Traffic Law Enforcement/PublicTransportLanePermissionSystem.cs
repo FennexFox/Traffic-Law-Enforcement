@@ -364,6 +364,10 @@ namespace Traffic_Law_Enforcement
                 ? state.m_OriginalPublicTransportLaneFlags
                 : (car.m_Flags & PublicTransportLanePolicy.PublicTransportLanePermissionMask);
 
+            byte immediateEntryGraceConsumed = hasState
+                ? state.m_ImmediateEntryGraceConsumed
+                : (byte)0;
+
             if (!m_ProfileData.TryGetComponent(vehicle, out VehicleTrafficLawProfile profile) ||
                 profile.m_ShouldTrack == 0)
             {
@@ -404,21 +408,38 @@ namespace Traffic_Law_Enforcement
             bool permissionBeingRevoked =
                 (desiredMask & CarFlags.UsePublicTransportLanes) == 0;
 
+            if (!permissionBeingRevoked)
+            {
+                immediateEntryGraceConsumed = 0;
+            }
+
             bool currentlyHasPublicTransportLaneFlag =
                 (currentMask & CarFlags.UsePublicTransportLanes) != 0;
 
-            bool committedToImmediatePublicTransportEntry =
+            bool immediatePublicTransportEntryPlanned =
                 permissionBeingRevoked &&
                 currentlyHasPublicTransportLaneFlag &&
-                hasPendingExit &&
-                pendingExit.m_HasLeftPublicTransportLane == 0 &&
                 !currentLaneStillInExitCorridor &&
                 IsCommittedToImmediatePublicTransportEntry(vehicle, currentLaneEntity);
+
+            bool continueImmediateEntryGrace =
+                hasPendingExit &&
+                pendingExit.m_HasLeftPublicTransportLane == 0 &&
+                immediatePublicTransportEntryPlanned;
+
+            bool bootstrapImmediateEntryGrace =
+                !hasPendingExit &&
+                immediateEntryGraceConsumed == 0 &&
+                immediatePublicTransportEntryPlanned;
 
             bool shouldGrantPendingExitGrace =
                 permissionBeingRevoked &&
                 currentlyHasPublicTransportLaneFlag &&
-                (currentLaneStillInExitCorridor || committedToImmediatePublicTransportEntry);
+                (
+                    currentLaneStillInExitCorridor ||
+                    continueImmediateEntryGrace ||
+                    bootstrapImmediateEntryGrace
+                );
 
             if (shouldGrantPendingExitGrace)
             {
