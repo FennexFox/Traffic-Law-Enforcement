@@ -15,7 +15,6 @@ namespace Traffic_Law_Enforcement
     public partial class CenterlineAccessObsoleteSystem : GameSystemBase
     {
         private const int MaxStructureSampleLogs = 64;
-        private const int ContextSummaryLogInterval = 512;
         private const byte EvaluationNoAccessTransition = 1;
         private const byte EvaluationCleanAccessTransition = 2;
         private const byte EvaluationInvalidatedAccessTransition = 3;
@@ -47,13 +46,6 @@ namespace Traffic_Law_Enforcement
         private readonly HashSet<Entity> m_CandidateVehicles = new HashSet<Entity>();
         private readonly HashSet<string> m_StructureSampleSignatures = new HashSet<string>();
         private PrefabSystem m_PrefabSystem;
-        private int m_TotalInvalidationCount;
-        private int m_CustomCurrentContextInvalidationCount;
-        private int m_PedestrianStreetCurrentContextInvalidationCount;
-        private int m_MediumRoadCurrentContextInvalidationCount;
-        private int m_PublicTransportLaneCurrentContextInvalidationCount;
-        private int m_CustomPedestrianOrPublicTransportCurrentContextInvalidationCount;
-        private int m_LastContextSummaryLoggedTotal;
         private readonly Dictionary<Entity, RepeatCenterlineInvalidationState> m_RepeatInvalidationStates = new Dictionary<Entity, RepeatCenterlineInvalidationState>();
 
         private struct RepeatCenterlineInvalidationState
@@ -257,11 +249,8 @@ namespace Traffic_Law_Enforcement
 
                     if (shouldLogEnforcementEvents)
                     {
-                        RecordInvalidationContext(currentLane.m_Lane);
-
                         Mod.log.Info($"Planned center-line access route invalidated: vehicle={vehicle}, fromLane={sourceLane}, toLane={targetLane}, accessIndex={transitionIndex}, transition={transitionKind}, reason={reason}");
                         LogStructureSample(currentLane.m_Lane, sourceLane, targetLane, transitionKind);
-                        LogInvalidationContextSummaryIfNeeded();
                     }
                 }
             }
@@ -418,51 +407,6 @@ namespace Traffic_Law_Enforcement
             return 1;
         }
 
-        private void RecordInvalidationContext(Entity currentLane)
-        {
-            m_TotalInvalidationCount += 1;
-
-            bool customCurrentContext = CurrentContextContainsPrefab(currentLane, IsWorkshopStyleCustomPrefabName);
-            bool pedestrianStreetCurrentContext = CurrentContextContainsPrefab(currentLane, IsPedestrianStreetPrefabName);
-            bool mediumRoadCurrentContext = CurrentContextContainsPrefab(currentLane, IsMediumRoadPrefabName);
-            bool publicTransportLaneCurrentContext = IsPublicTransportLaneContext(currentLane);
-
-            if (customCurrentContext)
-            {
-                m_CustomCurrentContextInvalidationCount += 1;
-            }
-
-            if (pedestrianStreetCurrentContext)
-            {
-                m_PedestrianStreetCurrentContextInvalidationCount += 1;
-            }
-
-            if (mediumRoadCurrentContext)
-            {
-                m_MediumRoadCurrentContextInvalidationCount += 1;
-            }
-
-            if (publicTransportLaneCurrentContext)
-            {
-                m_PublicTransportLaneCurrentContextInvalidationCount += 1;
-            }
-
-            if (customCurrentContext || pedestrianStreetCurrentContext || publicTransportLaneCurrentContext)
-            {
-                m_CustomPedestrianOrPublicTransportCurrentContextInvalidationCount += 1;
-            }
-        }
-
-        private void LogInvalidationContextSummaryIfNeeded()
-        {
-            if (m_TotalInvalidationCount == 0 || m_TotalInvalidationCount - m_LastContextSummaryLoggedTotal < ContextSummaryLogInterval)
-            {
-                return;
-            }
-
-            m_LastContextSummaryLoggedTotal = m_TotalInvalidationCount;
-        }
-
         private string DescribeLaneShape(Entity lane)
         {
             if (lane == Entity.Null)
@@ -545,42 +489,6 @@ namespace Traffic_Law_Enforcement
                 : prefabRef.m_Prefab.ToString();
         }
 
-        private bool CurrentContextContainsPrefab(Entity entity, System.Func<string, bool> match)
-        {
-            if (entity == Entity.Null)
-            {
-                return false;
-            }
-
-            Entity current = entity;
-            for (int depth = 0; depth < 8 && current != Entity.Null; depth += 1)
-            {
-                if (match(TryGetPrefabName(current)))
-                {
-                    return true;
-                }
-
-                if (!m_OwnerData.TryGetComponent(current, out Owner owner) || owner.m_Owner == Entity.Null || owner.m_Owner == current)
-                {
-                    break;
-                }
-
-                current = owner.m_Owner;
-            }
-
-            return false;
-        }
-
-        private bool IsPublicTransportLaneContext(Entity currentLane)
-        {
-            if (TryGetPrefabName(currentLane) == "Public Transport Lane 3 - Tram")
-            {
-                return true;
-            }
-
-            return CurrentContextContainsPrefab(currentLane, IsPublicTransportRoadPrefabName);
-        }
-
         private static bool IsRoadBuilderPrefabName(string prefabName)
         {
             if (string.IsNullOrEmpty(prefabName))
@@ -591,39 +499,6 @@ namespace Traffic_Law_Enforcement
             return prefabName.IndexOf("Road Builder", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
                 prefabName.IndexOf("RB ", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
                 prefabName.IndexOf("Made with Road Builder", System.StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
-        private static bool IsWorkshopStyleCustomPrefabName(string prefabName)
-        {
-            if (string.IsNullOrEmpty(prefabName))
-            {
-                return false;
-            }
-
-            return prefabName.Length > 17 &&
-                prefabName[0] == 'r' &&
-                prefabName.EndsWith("-76561198005833464", System.StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool IsPedestrianStreetPrefabName(string prefabName)
-        {
-            return string.Equals(prefabName, "Pedestrian Street", System.StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool IsMediumRoadPrefabName(string prefabName)
-        {
-            return string.Equals(prefabName, "Medium Road", System.StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool IsPublicTransportRoadPrefabName(string prefabName)
-        {
-            if (string.IsNullOrEmpty(prefabName))
-            {
-                return false;
-            }
-
-            return prefabName.IndexOf("Public Transport", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                prefabName.IndexOf("Tram", System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private void ResetDuplicateSuppressionIfPathChanged(Entity vehicle, PathOwner pathOwner)
