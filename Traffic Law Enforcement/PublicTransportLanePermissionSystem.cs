@@ -210,25 +210,6 @@ namespace Traffic_Law_Enforcement
             }
         }
 
-        private void EvaluateQuery(EntityQuery query)
-        {
-            NativeArray<Entity> vehicles = query.ToEntityArray(Allocator.Temp);
-            NativeArray<Car> cars = query.ToComponentDataArray<Car>(Allocator.Temp);
-
-            try
-            {
-                for (int index = 0; index < vehicles.Length; index += 1)
-                {
-                    EvaluateVehicle(vehicles[index], cars[index]);
-                }
-            }
-            finally
-            {
-                vehicles.Dispose();
-                cars.Dispose();
-            }
-        }
-
         private void BeginSteadyStateEvaluation()
         {
             m_ProcessedThisFrame.Clear();
@@ -373,10 +354,6 @@ namespace Traffic_Law_Enforcement
             bool hasPendingExit = m_PendingExitData.TryGetComponent(
                 vehicle,
                 out PublicTransportLanePendingExit pendingExit);
-
-            bool currentlyUsingPTLane =
-                currentLaneIsPublicOnly &&
-                (currentMask & CarFlags.UsePublicTransportLanes) != 0;
 
             bool permissionBeingRevoked =
                 (desiredMask & CarFlags.UsePublicTransportLanes) == 0;
