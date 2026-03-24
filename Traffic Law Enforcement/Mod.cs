@@ -33,9 +33,11 @@ namespace Traffic_Law_Enforcement
 
             EnforcementGameTime.Reset();
 
+            SettingsPersistenceDiagnosticPatches.Apply();
             m_Setting = new Setting(this);
             Settings = m_Setting;
             AssetDatabase.global.LoadSettings(nameof(Traffic_Law_Enforcement), m_Setting, new Setting(this));
+            SettingsPersistenceDiagnosticPatches.CaptureCurrentBindingSnapshot();
             m_Setting.RegisterInOptionsUI();
             RegisterTextLocales();
             BudgetUIPatches.Apply();
@@ -75,6 +77,7 @@ namespace Traffic_Law_Enforcement
             VehicleUtilsPatches.Remove();
             IntersectionMovementPathfindPatches.Remove();
             IntersectionMovementPathfindReflectionPatches.Remove();
+            SettingsPersistenceDiagnosticPatches.Remove();
             if (m_Setting != null)
             {
                 m_Setting.UnregisterInOptionsUI();
