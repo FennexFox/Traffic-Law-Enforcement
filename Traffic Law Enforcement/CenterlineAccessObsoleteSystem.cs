@@ -127,11 +127,15 @@ namespace Traffic_Law_Enforcement
             m_ParkingLaneData.Update(this);
             m_GarageLaneData.Update(this);
             m_ConnectionLaneData.Update(this);
-            m_TypeLookups.Update(this);
 
             bool shouldLogEnforcementEvents = EnforcementLoggingPolicy.ShouldLogEnforcementEvents();
             bool shouldLogPathObsoleteSources = EnforcementLoggingPolicy.ShouldLogPathObsoleteSources();
             bool shouldCollectPrefabLoggingContext = shouldLogEnforcementEvents || shouldLogPathObsoleteSources;
+
+            if (shouldCollectPrefabLoggingContext)
+            {
+                m_TypeLookups.Update(this);
+            }
 
             if (shouldCollectPrefabLoggingContext)
             {
