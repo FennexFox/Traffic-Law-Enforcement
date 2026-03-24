@@ -193,6 +193,16 @@ namespace Traffic_Law_Enforcement
                     systemLanguage = SystemLanguage.Russian;
                     return true;
 
+                case "zh-CN":
+                    localizedName = "简体中文";
+                    systemLanguage = SystemLanguage.ChineseSimplified;
+                    return true;
+
+                case "zh-TW":
+                    localizedName = "繁體中文";
+                    systemLanguage = SystemLanguage.ChineseTraditional;
+                    return true;
+                    
                 default:
                     localizedName = localeId;
                     systemLanguage = SystemLanguage.English;
