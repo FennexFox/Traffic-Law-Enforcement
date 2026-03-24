@@ -31,6 +31,7 @@ namespace Traffic_Law_Enforcement
         private NativeList<Entity> m_PendingRefreshVehicles;
         private HashSet<Entity> m_ProcessedThisFrame;
         private int m_RefreshCursor;
+        private int m_LastObservedRuntimeWorldGeneration = -1;
         private bool m_HasEvaluated;
         private bool m_LastEnforcementEnabled;
         private int m_LastSettingsMask;
@@ -92,6 +93,7 @@ namespace Traffic_Law_Enforcement
             m_PathOwnerData.Update(this);
             m_CurrentLaneData.Update(this);
             m_ProfileData.Update(this);
+            HandleRuntimeWorldReload();
             m_TypeLookups.Update(this);
             m_PermissionStateData.Update(this);
             m_PendingExitData.Update(this);
@@ -148,6 +150,36 @@ namespace Traffic_Law_Enforcement
             m_HasEvaluated = true;
             m_LastEnforcementEnabled = true;
             m_LastSettingsMask = settingsMask;
+        }
+
+        private void HandleRuntimeWorldReload()
+        {
+            int currentGeneration = EnforcementSaveDataSystem.RuntimeWorldGeneration;
+            if (m_LastObservedRuntimeWorldGeneration == currentGeneration)
+            {
+                return;
+            }
+
+            m_LastObservedRuntimeWorldGeneration = currentGeneration;
+
+            ClearPendingRefresh();
+            m_ProcessedThisFrame.Clear();
+            m_HasEvaluated = false;
+            m_LastEnforcementEnabled = false;
+            m_LastSettingsMask = 0;
+
+            if (!m_PendingExitQuery.IsEmptyIgnoreFilter)
+            {
+                EntityManager.RemoveComponent<PublicTransportLanePendingExit>(m_PendingExitQuery);
+            }
+
+            if (!m_TrackedQuery.IsEmptyIgnoreFilter)
+            {
+                EntityManager.RemoveComponent<PublicTransportLanePermissionState>(m_TrackedQuery);
+            }
+
+            Mod.log.Info(
+                $"[SAVELOAD] PublicTransportLanePermissionSystem runtime reset: generation={currentGeneration}");
         }
 
         private bool IsPublicOnlyLane(Entity laneEntity)

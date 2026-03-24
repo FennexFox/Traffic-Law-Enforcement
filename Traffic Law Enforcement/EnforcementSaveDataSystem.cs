@@ -19,6 +19,16 @@ namespace Traffic_Law_Enforcement
         private bool m_HasDeserializedData;
         private bool m_ShouldClearLegacyRuntimeState;
         private bool m_PendingPostDeserializeApply;
+        public static int RuntimeWorldGeneration { get; private set; }
+
+        private static void AdvanceRuntimeWorldGeneration(Context context)
+        {
+            RuntimeWorldGeneration += 1;
+
+            Mod.log.Info(
+                $"[SAVELOAD] RuntimeWorldGeneration advanced: generation={RuntimeWorldGeneration}, " +
+                $"purpose={context.purpose}");
+        }
 
         protected override void OnCreate()
         {
@@ -47,6 +57,7 @@ namespace Traffic_Law_Enforcement
             Mod.log.Info(
                 $"[SAVELOAD] SetDefaults: purpose={context.purpose}, " +
                 $"willClearLegacyRuntimeState={context.purpose == Purpose.LoadGame}");
+            AdvanceRuntimeWorldGeneration(context);
             ResetRuntimeState();
             EnforcementGameplaySettingsService.Apply(CreateInitialGameplaySettings(context));
             m_HasDeserializedData = false;

@@ -51,6 +51,7 @@ namespace Traffic_Law_Enforcement
         private readonly Dictionary<Entity, RoutePenaltySnapshot> m_LastSnapshots = new Dictionary<Entity, RoutePenaltySnapshot>();
         private readonly HashSet<Entity> m_CandidateVehicles = new HashSet<Entity>();
         private int m_UpdateCount;
+        private int m_LastObservedRuntimeWorldGeneration = -1;
 
         protected override void OnCreate()
         {
@@ -88,6 +89,7 @@ namespace Traffic_Law_Enforcement
         [BurstCompile]
         protected override void OnUpdate()
         {
+            HandleRuntimeWorldReload();
             bool loggingEnabled = EnforcementLoggingPolicy.ShouldLogEstimatedReroutes();
             if (!Mod.IsEnforcementEnabled)
             {
@@ -150,6 +152,25 @@ namespace Traffic_Law_Enforcement
             }
 
             RerouteLoggingTelemetry.SetState(true, m_LastSnapshots.Count, m_CandidateVehicles.Count, emittedLogs);
+        }
+
+        private void HandleRuntimeWorldReload()
+        {
+            int currentGeneration = EnforcementSaveDataSystem.RuntimeWorldGeneration;
+            if (m_LastObservedRuntimeWorldGeneration == currentGeneration)
+            {
+                return;
+            }
+
+            m_LastObservedRuntimeWorldGeneration = currentGeneration;
+
+            m_LastSnapshots.Clear();
+            m_CandidateVehicles.Clear();
+            m_UpdateCount = 0;
+            RerouteLoggingTelemetry.SetState(false, 0, 0, 0);
+
+            Mod.log.Info(
+                $"[SAVELOAD] RoutePenaltyRerouteLoggingSystem runtime reset: generation={currentGeneration}");
         }
 
         private void CollectCandidateVehicles(EntityQuery query)

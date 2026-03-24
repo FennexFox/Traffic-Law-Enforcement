@@ -21,6 +21,7 @@ namespace Traffic_Law_Enforcement
         private int m_RefreshCursor;
         private bool m_HasEvaluated;
         private int m_LastPermissionSettingsMask;
+        private int m_LastObservedRuntimeWorldGeneration = -1;
 
         protected override void OnCreate()
         {
@@ -58,6 +59,7 @@ namespace Traffic_Law_Enforcement
 
         protected override void OnUpdate()
         {
+            HandleRuntimeWorldReload();
             m_TypeLookups.Update(this);
             m_PersistedAccessStateData.Update(this);
             m_ProfileData.Update(this);
@@ -105,6 +107,24 @@ namespace Traffic_Law_Enforcement
             }
 
             base.OnDestroy();
+        }
+
+        private void HandleRuntimeWorldReload()
+        {
+            int currentGeneration = EnforcementSaveDataSystem.RuntimeWorldGeneration;
+            if (m_LastObservedRuntimeWorldGeneration == currentGeneration)
+            {
+                return;
+            }
+
+            m_LastObservedRuntimeWorldGeneration = currentGeneration;
+
+            ClearPendingRefresh();
+            m_HasEvaluated = false;
+            m_LastPermissionSettingsMask = 0;
+
+            Mod.log.Info(
+                $"[SAVELOAD] VehicleTrafficLawProfileSystem runtime reset: generation={currentGeneration}");
         }
 
         private void SeedProfilesFromPersistedState(int permissionSettingsMask)
