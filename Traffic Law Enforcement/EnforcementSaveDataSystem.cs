@@ -71,6 +71,7 @@ namespace Traffic_Law_Enforcement
 
         public void SetDefaults(Context context)
         {
+            string saveContext = TryDescribeSaveContext(context);
             Mod.log.Info(
                 $"[SAVELOAD] SetDefaults: purpose={context.purpose}, " +
                 $"save={saveContext}, " +
