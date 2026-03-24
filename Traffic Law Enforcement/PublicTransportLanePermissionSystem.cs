@@ -93,8 +93,8 @@ namespace Traffic_Law_Enforcement
             m_TypeLookups.Update(this);
             m_PermissionStateData.Update(this);
             m_PendingExitData.Update(this);
-            m_NavigationLaneData = GetBufferLookup<CarNavigationLane>(true);
-            m_ConnectionLaneData = GetComponentLookup<ConnectionLane>(true);
+            m_NavigationLaneData.Update(this);
+            m_ConnectionLaneData.Update(this);
 
             EnforcementGameplaySettingsState settings = EnforcementGameplaySettingsService.Current;
             bool enforcementEnabled = Mod.IsPublicTransportLaneEnforcementEnabled;
