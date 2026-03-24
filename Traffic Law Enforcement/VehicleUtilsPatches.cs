@@ -111,18 +111,12 @@ namespace Traffic_Law_Enforcement
             float2 delta,
             PathfindParameters ___m_Parameters)
         {
-            if (!Mod.IsPublicTransportLaneEnforcementEnabled)
+            if (!s_CachedPublicTransportLaneEnforcementEnabled)
             {
                 return;
             }
 
             if ((rules & RuleFlags.ForbidPrivateTraffic) == 0)
-            {
-                return;
-            }
-
-            float moneyWeight = ___m_Parameters.m_Weights.money;
-            if (moneyWeight <= 0f)
             {
                 return;
             }
@@ -133,28 +127,34 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
+            float moneyWeight = ___m_Parameters.m_Weights.money;
+            if (moneyWeight <= 0f)
+            {
+                return;
+            }
+
             __result += publicTransportPenalty * moneyWeight * math.abs(delta.y - delta.x);
         }
 
-            private static void RefreshCachedPenaltyValues()
+        private static void RefreshCachedPenaltyValues()
+        {
+            bool enforcementEnabled = Mod.IsPublicTransportLaneEnforcementEnabled;
+            int configuredFineAmount = enforcementEnabled
+                ? EnforcementGameplaySettingsService.Current.PublicTransportLaneFineAmount
+                : 0;
+
+            if (s_HasCachedPenaltyValues &&
+                s_CachedPublicTransportLaneEnforcementEnabled == enforcementEnabled &&
+                s_CachedConfiguredPublicTransportLaneFine == configuredFineAmount)
             {
-                bool enforcementEnabled = Mod.IsPublicTransportLaneEnforcementEnabled;
-                int configuredFineAmount = enforcementEnabled
-                    ? EnforcementGameplaySettingsService.Current.PublicTransportLaneFineAmount
-                    : 0;
-
-                if (s_HasCachedPenaltyValues &&
-                    s_CachedPublicTransportLaneEnforcementEnabled == enforcementEnabled &&
-                    s_CachedConfiguredPublicTransportLaneFine == configuredFineAmount)
-                {
-                    return;
-                }
-
-                s_HasCachedPenaltyValues = true;
-                s_CachedPublicTransportLaneEnforcementEnabled = enforcementEnabled;
-                s_CachedConfiguredPublicTransportLaneFine = configuredFineAmount;
-                s_CachedPublicTransportLaneFine = configuredFineAmount;
+                return;
             }
+
+            s_HasCachedPenaltyValues = true;
+            s_CachedPublicTransportLaneEnforcementEnabled = enforcementEnabled;
+            s_CachedConfiguredPublicTransportLaneFine = configuredFineAmount;
+            s_CachedPublicTransportLaneFine = configuredFineAmount;
+        }
 
         private static void SyncPrivateTrafficIgnoredRules(
             EntityManager entityManager,
