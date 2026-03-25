@@ -121,9 +121,8 @@ namespace Traffic_Law_Enforcement
                 return true;
             }
 
-            if (member is not PropertyInfo property ||
-                property.Name != nameof(KeybindingSettings.bindings) ||
-                property.DeclaringType != typeof(KeybindingSettings))
+            if (member == null ||
+                !string.Equals(member.Name, nameof(KeybindingSettings.bindings), StringComparison.Ordinal))
             {
                 return true;
             }

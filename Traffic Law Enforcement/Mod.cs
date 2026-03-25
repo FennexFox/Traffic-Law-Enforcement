@@ -32,7 +32,8 @@ namespace Traffic_Law_Enforcement
                 log.Info($"Current mod asset at {asset.path}");
 
             EnforcementGameTime.Reset();
-
+            SaveLoadTraceService.Reset();
+            SaveLoadTracePatches.Apply();
             KeybindingPersistenceGuardPatches.Apply();
             m_Setting = new Setting(this);
             Settings = m_Setting;
@@ -77,6 +78,8 @@ namespace Traffic_Law_Enforcement
         public void OnDispose()
         {
             log.Info(nameof(OnDispose));
+            SaveLoadTracePatches.Remove();
+            SaveLoadTraceService.Reset();
             KeybindingPersistenceGuardPatches.CaptureCurrentBindings();
             BudgetUIPatches.Remove();
             VehicleUtilsPatches.Remove();

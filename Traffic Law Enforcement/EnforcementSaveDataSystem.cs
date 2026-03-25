@@ -342,6 +342,7 @@ namespace Traffic_Law_Enforcement
                 $"[SAVELOAD] Deserialize begin: version={version}, " +
                 $"contextStamp={m_LastContextStamp}, contextStage={m_LastContextStage}, " +
                 $"context={m_LastContextSummary}, lastKnownSave={m_LastKnownSaveContext}, " +
+                $"{SaveLoadTraceService.DescribePendingLoad()}, " +
                 $"runtimeGeneration={RuntimeWorldGeneration}");
             if (version != 3 && version != 4 && version != 5 && version != 6 && version != 7 && version != 8 && version != kSerializationVersion)
             {
@@ -730,6 +731,7 @@ namespace Traffic_Law_Enforcement
                     $"[SAVELOAD] Deserialize loaded: version={version}, " +
                     $"contextStamp={m_LastContextStamp}, contextStage={m_LastContextStage}, " +
                     $"context={m_LastContextSummary}, lastKnownSave={m_LastKnownSaveContext}, " +
+                    $"{SaveLoadTraceService.DescribePendingLoad()}, " +
                     $"runtimeGeneration={RuntimeWorldGeneration}, " +
                     $"loadedPtVehicleStates={m_LoadedPublicTransportLaneVehicleStates.Count}, " +
                     $"hasTrackingState={trackingState.HasValue}, " +
