@@ -117,7 +117,7 @@ namespace Traffic_Law_Enforcement
 
                     if (isPending && !m_SuppressPendingBackfillForCurrentUpdate)
                     {
-                        EnforcementPolicyImpactService.RecordPathRequest(vehicle.Index);
+                        EnforcementPolicyImpactService.EnsureActivePathContext(vehicle.Index);
                     }
 
                     EntityManager.AddComponentData(
@@ -163,7 +163,7 @@ namespace Traffic_Law_Enforcement
 
                     if (!wasPending && isPending)
                     {
-                        EnforcementPolicyImpactService.RecordPathRequest(vehicle.Index);
+                        EnforcementPolicyImpactService.EnsureActivePathContext(vehicle.Index);
                     }
 
                     byte updatedWasPending = (byte)(isPending ? 1 : 0);

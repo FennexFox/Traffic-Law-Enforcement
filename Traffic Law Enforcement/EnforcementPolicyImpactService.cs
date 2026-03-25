@@ -963,6 +963,24 @@ namespace Traffic_Law_Enforcement
             return pathContextSequence;
         }
 
+        public static void EnsureActivePathContext(int vehicleId)
+        {
+            if (vehicleId <= 0)
+            {
+                return;
+            }
+
+            if (s_ActivePathContextByVehicle.TryGetValue(vehicleId, out long existingSequence) &&
+                existingSequence > 0L)
+            {
+                return;
+            }
+
+            long pathContextSequence = s_NextPathContextSequence;
+            s_NextPathContextSequence += 1L;
+            s_ActivePathContextByVehicle[vehicleId] = pathContextSequence;
+        }
+
         private static bool TryGetActivePathContext(int vehicleId, out long pathContextSequence)
         {
             if (vehicleId > 0 &&
