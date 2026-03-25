@@ -21,6 +21,7 @@ namespace Traffic_Law_Enforcement
         private bool m_HasDeserializedData;
         private bool m_ShouldClearLegacyRuntimeState;
         private bool m_PendingPostDeserializeApply;
+        private bool m_HasDeserializeBeenCalledForCurrentLoad;
         public static int RuntimeWorldGeneration { get; private set; }
         private EntityQuery m_PublicTransportLaneProfileQuery;
         private EntityQuery m_PersistedPublicTransportLaneAccessStateQuery;
@@ -70,6 +71,16 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
+            if (!m_HasDeserializeBeenCalledForCurrentLoad)
+            {
+                Mod.log.Info(
+                    $"[SAVELOAD] Apply requested without Deserialize call: " +
+                    $"contextStamp={m_LastContextStamp}, contextStage={m_LastContextStage}, " +
+                    $"context={m_LastContextSummary}, lastKnownSave={m_LastKnownSaveContext}, " +
+                    $"{SaveLoadTraceService.DescribePendingLoad()}, " +
+                    $"runtimeGeneration={RuntimeWorldGeneration}");
+            }
+
             ApplyLoadedStateToWorld();
             m_PendingPostDeserializeApply = false;
         }
@@ -97,6 +108,7 @@ namespace Traffic_Law_Enforcement
             EnforcementGameplaySettingsService.Apply(CreateInitialGameplaySettings(context));
             m_LoadedPublicTransportLaneVehicleStates.Clear();
             m_HasDeserializedData = false;
+            m_HasDeserializeBeenCalledForCurrentLoad = false;
             m_ShouldClearLegacyRuntimeState = context.purpose == Purpose.LoadGame;
             m_PendingPostDeserializeApply = true;
         }
@@ -122,6 +134,7 @@ namespace Traffic_Law_Enforcement
 
             m_LoadedPublicTransportLaneVehicleStates.Clear();
             m_HasDeserializedData = false;
+            m_HasDeserializeBeenCalledForCurrentLoad = false;
             m_ShouldClearLegacyRuntimeState = false;
             m_PendingPostDeserializeApply = false;
         }
@@ -338,6 +351,7 @@ namespace Traffic_Law_Enforcement
         public void Deserialize<TReader>(TReader reader) where TReader : IReader
         {
             reader.Read(out int version);
+            m_HasDeserializeBeenCalledForCurrentLoad = true;
             Mod.log.Info(
                 $"[SAVELOAD] Deserialize begin: version={version}, " +
                 $"contextStamp={m_LastContextStamp}, contextStage={m_LastContextStage}, " +
