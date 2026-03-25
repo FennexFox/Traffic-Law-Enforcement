@@ -1,10 +1,12 @@
 using System;
 using System.Reflection;
 using Colossal.IO.AssetDatabase;
+using Colossal.Serialization.Entities;
+using HarmonyLib;
 using Game;
 using Game.Assets;
 using Game.SceneFlow;
-using HarmonyLib;
+
 
 namespace Traffic_Law_Enforcement
 {
@@ -68,7 +70,10 @@ namespace Traffic_Law_Enforcement
 
             try
             {
-                s_Harmony.UnpatchSelf();
+                if (s_GameManagerLoadMethod != null)
+                {
+                    s_Harmony.Unpatch(s_GameManagerLoadMethod, HarmonyPatchType.All, HarmonyId);
+                }
                 Mod.log.Info("[SAVELOAD] SaveLoadTracePatches removed.");
             }
             catch (Exception ex)
