@@ -99,8 +99,6 @@ namespace Traffic_Law_Enforcement
                 return;
             }
 
-            EnforcementPolicyImpactService.RecordPathRequest(owner.Index);
-
             if (!s_HasCachedPenaltyValues)
             {
                 RefreshCachedPenaltyValues();

@@ -129,7 +129,7 @@ namespace Traffic_Law_Enforcement
 
             while (MonthlyEnforcementChirperService.TryConsumeManualPreviewRequest())
             {
-                TryPublishCurrentPeriodPreview(currentTimestampMonthTicks, openPanel: false, out _);
+                TryPublishCurrentPeriodPreview(currentTimestampMonthTicks, openPanel: true, out _);
             }
         }
 
@@ -158,7 +158,7 @@ namespace Traffic_Law_Enforcement
                 Mod.log.Info($"Monthly chirper tracking initialized from manual preview. month={currentMonthIndex}");
             }
 
-            return TryPublishCurrentPeriodPreview(currentTimestampMonthTicks, openPanel: false, out failureReason);
+            return TryPublishCurrentPeriodPreview(currentTimestampMonthTicks, openPanel: true, out failureReason);
         }
 
         private void RegisterLocalizationSources()
